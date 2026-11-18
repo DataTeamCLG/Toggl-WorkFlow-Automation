@@ -145,45 +145,48 @@ def normalizar_nombre(nombre):
 
 def formatear_duracion(valor):
     """
-    Convierte cualquier entrada numérica a formato H:MM:SS.
-    Si Toggl exporta 1.19 horas, lo pasa a 1:11:24.
+    Convierte de forma segura cualquier entrada de duración a formato H:MM:SS.
+    Primero verifica si ya es un string de tiempo, luego si es un número decimal.
     """
     if pd.isna(valor):
         return "0:00:00"
     
-    # Si es un número (horas decimales desde Toggl)
-    if isinstance(valor, (int, float)):
-        total_seg = int(round(float(valor) * 3600))
-        h, rem = divmod(total_seg, 3600)
-        m, s = divmod(rem, 60)
-        return f"{h}:{m:02d}:{s:02d}"
-        
+    # Convertir a string para analizar
     s = str(valor).strip()
     
-    # Si viene con texto de días, lo limpiamos
+    # Si ya viene en formato H:MM:SS exacto (ej. "0:30:00")
+    if re.match(r'^\d+:\d{2}:\d{2}$', s):
+        return s
+        
+    # Si viene en formato H:MM (ej. "0:30")
+    if re.match(r'^\d+:\d{2}$', s):
+        return s + ":00"
+        
+    # Si viene con texto de días (ej. "1 days 02:30:00")
     if "days" in s.lower() or "day" in s.lower():
         match = re.search(r'(\d+)', s)
         if match:
             h = int(match.group(1)) * 24
             return f"{h}:00:00"
             
-    # Si ya viene en formato H:MM:SS
-    if re.match(r'^\d+:\d{2}:\d{2}$', s):
-        return s
-        
-    # Si viene en formato H:MM
-    if re.match(r'^\d+:\d{2}$', s):
-        return s + ":00"
-        
-    # Si viene como un número decimal en string (ej. "1.19")
+    # Si es un número decimal en string (ej. "0.5" o "1.19")
     try:
         val_float = float(s)
         total_seg = int(round(val_float * 3600))
         h, rem = divmod(total_seg, 3600)
-        m, s_dec = divmod(rem, 60)
-        return f"{h}:{m:02d}:{s_dec:02d}"
+        m, sec = divmod(rem, 60)
+        return f"{h}:{m:02d}:{sec:02d}"
     except ValueError:
-        return s
+        pass
+        
+    # Si el valor original es int o float directo
+    if isinstance(valor, (int, float)):
+        total_seg = int(round(float(valor) * 3600))
+        h, rem = divmod(total_seg, 3600)
+        m, sec = divmod(rem, 60)
+        return f"{h}:{m:02d}:{sec:02d}"
+
+    return s
 
 
 def formatear_fecha(valor):
@@ -197,7 +200,7 @@ def formatear_fecha(valor):
         return str(valor)
 
 # ============================================================
-# HTML DEL CORREO (DISEÑO ANCHO Y PALETA CORPORATIVA)
+# HTML DEL CORREO (DISEÑO ANCHO, COLORIDO Y LEGIBLE)
 # ============================================================
 
 def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None, logo_data_uri=None):
@@ -207,7 +210,7 @@ def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None, logo_data_
     saludo_completo = f"{saludo} {prefix} {nombre},".replace("  ", " ").strip()
 
     filas = ""
-    for _, row in df_usuario.iterrows():
+    for idx, (_, row) in enumerate(df_usuario.iterrows()):
         fecha = formatear_fecha(row.get('Date', ''))
         proyecto = row.get('Project (Activity)', '')
         cliente = row.get('Client Tag', '')
@@ -216,18 +219,20 @@ def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None, logo_data_
         tipo = row.get('Type of incident', row.get('Type of Incident', ''))
         obs = row.get('Observations', '')
         
-        # Estilos de celda mejorados para aprovechar el ancho
+        # Zebra striping (filas alternas)
+        bg_color = "#ffffff" if idx % 2 == 0 else "#f8fafc"
+        
         filas += f"""
-        <tr>
-            <td style="padding: 14px 18px; border-bottom: 1px solid #e2e8f0; color: #334155; font-size: 13px; white-space: nowrap;">{fecha}</td>
-            <td style="padding: 14px 18px; border-bottom: 1px solid #e2e8f0; color: #334155; font-size: 13px;">{proyecto}</td>
-            <td style="padding: 14px 18px; border-bottom: 1px solid #e2e8f0; font-size: 13px;">
-                <span style="background-color: #e0f2fe; color: #0369a1; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 700; white-space: nowrap;">{cliente}</span>
+        <tr style="background-color: {bg_color};">
+            <td style="padding: 14px 18px; border-bottom: 1px solid #e2e8f0; color: #334155; font-size: 15px; white-space: nowrap;">{fecha}</td>
+            <td style="padding: 14px 18px; border-bottom: 1px solid #e2e8f0; color: #334155; font-size: 15px;">{proyecto}</td>
+            <td style="padding: 14px 18px; border-bottom: 1px solid #e2e8f0; font-size: 15px;">
+                <span style="background-color: #e0f2fe; color: #0369a1; padding: 4px 10px; border-radius: 4px; font-size: 13px; font-weight: 700; white-space: nowrap;">{cliente}</span>
             </td>
-            <td style="padding: 14px 18px; border-bottom: 1px solid #e2e8f0; color: #334155; font-size: 13px;">{descripcion}</td>
-            <td style="padding: 14px 18px; border-bottom: 1px solid #e2e8f0; color: #012338; font-size: 13px; font-weight: 700; white-space: nowrap;">{duracion}</td>
-            <td style="padding: 14px 18px; border-bottom: 1px solid #e2e8f0; color: #b91c1c; font-size: 13px; font-weight: 700;">{tipo}</td>
-            <td style="padding: 14px 18px; border-bottom: 1px solid #e2e8f0; color: #64748b; font-size: 12px; font-style: italic;">{obs}</td>
+            <td style="padding: 14px 18px; border-bottom: 1px solid #e2e8f0; color: #334155; font-size: 15px;">{descripcion}</td>
+            <td style="padding: 14px 18px; border-bottom: 1px solid #e2e8f0; color: #012338; font-size: 15px; font-weight: 700; white-space: nowrap;">{duracion}</td>
+            <td style="padding: 14px 18px; border-bottom: 1px solid #e2e8f0; color: #b91c1c; font-size: 15px; font-weight: 700;">{tipo}</td>
+            <td style="padding: 14px 18px; border-bottom: 1px solid #e2e8f0; color: #64748b; font-size: 14px; font-style: italic;">{obs}</td>
         </tr>
         """
 
@@ -245,16 +250,15 @@ def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None, logo_data_
     <div style="margin-top: 40px; padding-top: 25px; border-top: 2px solid #e2e8f0; font-family: 'Segoe UI', 'Calibri', Arial, sans-serif;">
         {logo_html}
         <div style="text-align: center;">
-            <strong style="color: #012338; font-size: 15px;">{NOMBRE_EMPRESA}</strong><br>
-            <span style="color: #0284c7; font-size: 12px; font-weight: 600;">{DEPARTAMENTO}</span><br>
-            <span style="color: #64748b; font-size: 11px; margin-top: 6px; display: inline-block;">
+            <strong style="color: #012338; font-size: 16px;">{NOMBRE_EMPRESA}</strong><br>
+            <span style="color: #0284c7; font-size: 14px; font-weight: 600;">{DEPARTAMENTO}</span><br>
+            <span style="color: #64748b; font-size: 13px; margin-top: 6px; display: inline-block;">
                 📞 {TELEFONO} &nbsp;|&nbsp; ✉️ <a href="mailto:{EMAIL_CONTACTO}" style="color: #0284c7; text-decoration: none;">{EMAIL_CONTACTO}</a> &nbsp;|&nbsp; 🌐 <a href="https://{SITIO_WEB}" style="color: #0284c7; text-decoration: none;">{SITIO_WEB}</a>
             </span>
         </div>
     </div>
     """
 
-    # Cambiamos el width al 95% con max-width para que se vea amplio pero no se desborde
     html = f"""
     <!DOCTYPE html>
     <html>
@@ -264,38 +268,38 @@ def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None, logo_data_
             body {{
                 font-family: 'Segoe UI', 'Calibri', Arial, sans-serif;
                 line-height: 1.6; color: #1e293b; margin: 0; padding: 0;
-                background-color: #f1f5f9;
+                background-color: #e2e8f0; /* Fondo gris azulado para contrastar */
             }}
             .wrapper {{
-                width: 100%; background-color: #f1f5f9; padding: 40px 0;
+                width: 100%; background-color: #e2e8f0; padding: 40px 0;
             }}
-            /* Contenedor más ancho */
             .container {{
-                width: 95%; max-width: 1000px; margin: 0 auto; background-color: #ffffff;
-                border-radius: 8px; overflow: hidden;
-                box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05); border: 1px solid #e2e8f0;
+                width: 95%; max-width: 1050px; margin: 0 auto; background-color: #ffffff;
+                border-radius: 10px; overflow: hidden;
+                box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08); border: 1px solid #cbd5e1;
             }}
-            /* Banner con letras blancas y azul corporativo */
+            /* Banner con azul corporativo */
             .header {{
                 background-color: #012338;
-                padding: 30px 20px; text-align: center;
+                padding: 35px 20px; text-align: center;
             }}
-            .header h1 {{ margin: 0; font-size: 26px; font-weight: 700; letter-spacing: 0.5px; color: #ffffff; }}
-            .header p {{ margin: 8px 0 0 0; font-size: 14px; color: #7dd3fc; font-weight: 500; }}
+            .header h1 {{ margin: 0; font-size: 28px; font-weight: 700; letter-spacing: 0.5px; color: #ffffff; }}
+            .header p {{ margin: 10px 0 0 0; font-size: 16px; color: #7dd3fc; font-weight: 500; letter-spacing: 0.5px; }}
             
             .content {{ padding: 40px; }}
             
+            /* Saludo con fondo celeste para romper el blanco */
             .saludo {{
-                background-color: #f0f9ff; border-left: 4px solid #012338;
-                padding: 18px 24px; margin-bottom: 25px; border-radius: 0 6px 6px 0;
-                font-size: 16px; color: #012338;
+                background-color: #f0f9ff; border-left: 5px solid #0284c7;
+                padding: 20px 25px; margin-bottom: 30px; border-radius: 0 8px 8px 0;
+                font-size: 18px; color: #012338;
             }}
             .saludo strong {{ font-weight: 700; color: #012338; }}
             
-            .intro {{ font-size: 15px; color: #475569; margin-bottom: 20px; }}
+            .intro {{ font-size: 16px; color: #334155; margin-bottom: 20px; }}
             .badge-count {{
                 display: inline-block; background-color: #ef4444; color: #ffffff;
-                padding: 2px 10px; border-radius: 12px; font-size: 13px; font-weight: 700;
+                padding: 2px 12px; border-radius: 14px; font-size: 15px; font-weight: 700;
                 margin: 0 4px;
             }}
             
@@ -304,20 +308,19 @@ def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None, logo_data_
             }}
             .tabla-resumen {{ width: 100%; border-collapse: collapse; text-align: left; }}
             
-            /* Encabezado de tabla con contraste elegante */
+            /* Encabezado de tabla en azul oscuro con letra blanca */
             .tabla-resumen th {{
-                background-color: #f8fafc; color: #012338; font-weight: 700;
-                padding: 14px 18px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;
-                border-bottom: 2px solid #cbd5e1;
+                background-color: #012338; color: #ffffff; font-weight: 600;
+                padding: 16px 18px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;
             }}
             .tabla-resumen tr:last-child td {{ border-bottom: none; }}
-            .fila-tabla:hover {{ background-color: #f8fafc; }}
             
+            /* Caja de agradecimiento/acciones con tono azulado */
             .agradecimiento {{
-                background-color: #f8fafc; border: 1px solid #e2e8f0;
-                padding: 24px; border-radius: 8px; text-align: left; font-size: 14px; color: #475569;
+                background-color: #eff6ff; border: 1px solid #bfdbfe; border-left: 5px solid #3b82f6;
+                padding: 25px; border-radius: 8px; text-align: left; font-size: 15px; color: #1e3a8a;
             }}
-            .agradecimiento strong {{ color: #012338; font-size: 15px; display: block; margin-bottom: 8px; }}
+            .agradecimiento strong {{ color: #012338; font-size: 16px; display: block; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px; }}
         </style>
     </head>
     <body>
