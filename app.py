@@ -19,7 +19,7 @@ import re
 # ============================================================
 
 st.set_page_config(
-    page_title="Notificador de Incidentes Toggl",
+    page_title="Toggl Incident Notifier",
     page_icon="⚠️",
     layout="wide"
 )
@@ -40,8 +40,11 @@ TELEFONO = "+1 (615) 913-5576"
 EMAIL_CONTACTO = "executiveassistant2@communitylawgroup.com"
 SITIO_WEB = "www.communitylawgroup.com"
 
-TAMANO_LOGO = 190
-LOGO_WIDTH = 180
+# Logo más pequeño para evitar que Outlook lo bloquee
+TAMANO_LOGO = 140
+LOGO_WIDTH = 140
+# Ancho máximo en bytes para adjuntar logo (Outlook bloquea ~40KB en algunos casos)
+LOGO_MAX_BYTES = 30000
 
 ZONA_HORARIA = pytz.timezone('America/Bogota')
 
@@ -60,17 +63,29 @@ def get_image_from_github(url):
         return None
 
 
-def resize_logo(logo_bytes, target_width=LOGO_WIDTH):
+def resize_logo(logo_bytes, target_width=LOGO_WIDTH, max_bytes=LOGO_MAX_BYTES):
+    """Redimensiona y comprime el logo para asegurar que se muestre inline."""
+    if logo_bytes is None:
+        return None
     try:
-        if logo_bytes is None:
-            return None
-        img = Image.open(BytesIO(logo_bytes))
+        img = Image.open(BytesIO(logo_bytes)).convert("RGBA")
         w, h = img.size
         target_height = int(target_width * (h / w))
         img = img.resize((target_width, target_height), Image.Resampling.LANCZOS)
+
+        # Reducir calidad progresivamente hasta que quepa en max_bytes
+        for quality in (95, 85, 75, 65, 55, 45):
+            out = BytesIO()
+            img.save(out, format='PNG', optimize=True)
+            data = out.getvalue()
+            if len(data) <= max_bytes:
+                return data
+
+        # Si aún no cabe, convertir a JPEG (más ligero)
+        rgb = Image.new("RGB", img.size, (255, 255, 255))
+        rgb.paste(img, mask=img.split()[-1] if img.mode == 'RGBA' else None)
         out = BytesIO()
-        img.save(out, format='PNG', quality=95, optimize=True)
-        out.seek(0)
+        rgb.save(out, format='JPEG', quality=80, optimize=True)
         return out.getvalue()
     except Exception:
         return logo_bytes
@@ -78,6 +93,9 @@ def resize_logo(logo_bytes, target_width=LOGO_WIDTH):
 
 def get_logo_bytes():
     b = get_image_from_github(URL_LOGO_GITHUB)
+    if not b:
+        # Fallback al banner si el logo falla
+        b = get_image_from_github(URL_BANNER_GITHUB)
     return resize_logo(b, LOGO_WIDTH) if b else None
 
 
@@ -91,13 +109,14 @@ def get_banner_base64():
 # UTILIDADES
 # ============================================================
 
-def obtener_saludo():
+def obtener_saludo_en():
+    """Saludo en inglés corporativo según hora local."""
     h = datetime.now(ZONA_HORARIA).hour
-    if 6 <= h < 12:
-        return "Buenos días"
+    if 5 <= h < 12:
+        return "Good morning"
     elif 12 <= h < 18:
-        return "Buenas tardes"
-    return "Buenas noches"
+        return "Good afternoon"
+    return "Good evening"
 
 
 def obtener_hora_local():
@@ -105,7 +124,6 @@ def obtener_hora_local():
 
 
 def limpiar_emails(valor):
-    """Convierte 'a@x.com; b@y.com, c@z.com' en lista limpia."""
     if pd.isna(valor) or valor is None:
         return []
     txt = str(valor).strip()
@@ -116,14 +134,12 @@ def limpiar_emails(valor):
 
 
 def normalizar_nombre(nombre):
-    """Para hacer match tolerante entre NAME CORRECT y Corrected Name."""
     if pd.isna(nombre):
         return ""
     return re.sub(r'\s+', ' ', str(nombre).strip()).lower()
 
 
 def formatear_duracion(valor):
-    """Duration viene como 'H:MM:SS' o como fracción de día (Excel time)."""
     if pd.isna(valor):
         return ""
     if isinstance(valor, (int, float)):
@@ -143,18 +159,18 @@ def formatear_fecha(valor):
     if pd.isna(valor):
         return ""
     if isinstance(valor, (pd.Timestamp, datetime)):
-        return valor.strftime('%d/%m/%Y')
+        return valor.strftime('%m/%d/%Y')
     try:
-        return pd.to_datetime(valor).strftime('%d/%m/%Y')
+        return pd.to_datetime(valor).strftime('%m/%d/%Y')
     except Exception:
         return str(valor)
 
 # ============================================================
-# HTML DEL CORREO
+# HTML DEL CORREO (EN INGLÉS CORPORATIVO)
 # ============================================================
 
 def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None):
-    saludo = obtener_saludo()
+    saludo = obtener_saludo_en()
     prefix = usuario_info.get('prefix', '')
     nombre = usuario_info.get('nombre', '')
     saludo_completo = f"{saludo} {prefix} {nombre},".replace("  ", " ").strip()
@@ -206,6 +222,7 @@ def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None):
     html = f"""
     <html>
     <head>
+        <meta charset="utf-8">
         <style>
             body {{
                 font-family: 'Segoe UI', 'Calibri', Arial, sans-serif;
@@ -227,6 +244,9 @@ def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None):
                 padding: 12px 18px; margin: 20px 0; font-size: 15px; color: #000000;
             }}
             .saludo strong {{ color: #1a3a5c; font-weight: bold; }}
+            .intro {{
+                font-size: 14px; color: #000000; margin: 15px 0; line-height: 1.6;
+            }}
             .tabla-resumen {{
                 margin: 25px 0; border: 1px solid #dce4ec;
                 background-color: #ffffff; border-radius: 4px; overflow: hidden;
@@ -246,8 +266,8 @@ def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None):
             .fila-normal:hover {{ background-color: #f8fafc; }}
             .agradecimiento {{
                 background-color: #f0f6fc; padding: 12px 18px; margin-top: 25px;
-                text-align: center; font-size: 13px; color: #000000;
-                border-top: 1px solid #dce4ec; border-radius: 4px;
+                text-align: left; font-size: 13px; color: #000000;
+                border-top: 1px solid #dce4ec; border-radius: 4px; line-height: 1.6;
             }}
             .badge-count {{
                 display: inline-block; background-color: #1a3a5c; color: #ffffff;
@@ -258,25 +278,32 @@ def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None):
     <body>
         <div class="container">
             <div class="header">
-                <h1>⚠️ Notificación de Incidentes — Toggl</h1>
-                <p>Registro de incidencias detectadas</p>
+                <h1>⚠️ Toggl Incident Notification</h1>
+                <p>Time Entries Incident Report</p>
             </div>
             <div class="saludo">
-                <strong>{saludo_completo}</strong><br>
-                Se han detectado <span class="badge-count">{len(df_usuario)}</span>
-                incidencia(s) en tu registro de horas de Toggl. A continuación el detalle:
+                <strong>{saludo_completo}</strong>
+            </div>
+            <div class="intro">
+                As part of the training process for habits in Toggl — especially regarding the
+                Timers component — we are sending you the incident report on Time Entries
+                incidents detected in your account.
+            </div>
+            <div class="intro">
+                The following <span class="badge-count">{len(df_usuario)}</span>
+                incident(s) were identified and require your review:
             </div>
             <div class="tabla-resumen">
                 <table>
                     <thead>
                         <tr>
-                            <th>Fecha</th>
-                            <th>Proyecto (Activity)</th>
+                            <th>Date</th>
+                            <th>Project (Activity)</th>
                             <th>Client Tag</th>
-                            <th>Descripción</th>
-                            <th>Duración</th>
-                            <th>Tipo de Incidente</th>
-                            <th>Observaciones</th>
+                            <th>Description</th>
+                            <th>Duration</th>
+                            <th>Type of Incident</th>
+                            <th>Observations</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -285,8 +312,11 @@ def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None):
                 </table>
             </div>
             <div class="agradecimiento">
-                Por favor revisa y corrige las incidencias. Si tienes dudas, contacta al departamento de Quality Control.<br>
-                Gracias por tu atención.
+                We expect team members to correct their time entries, activities, and activity
+                descriptions within a maximum period of 24 hours. Should you have any questions
+                regarding this report, please contact the Quality Control & Efficiency Department.
+                <br><br>
+                Thank you for your attention and cooperation.
             </div>
             {firma_html}
         </div>
@@ -296,7 +326,7 @@ def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None):
     return html
 
 # ============================================================
-# ENVÍO DE CORREO
+# ENVÍO DE CORREO (LOGO FIX)
 # ============================================================
 
 def enviar_correo(smtp_username, smtp_password, to_emails, cc_emails,
@@ -310,18 +340,30 @@ def enviar_correo(smtp_username, smtp_password, to_emails, cc_emails,
             msg['CC'] = ", ".join(cc_emails)
         msg['X-Priority'] = '1'
 
-        msg.attach(MIMEText(html_body, 'html'))
+        # HTML en alternativa + related para que Outlook resuelva el CID
+        alt = MIMEMultipart('alternative')
+        alt.attach(MIMEText(html_body, 'html', 'utf-8'))
+        msg.attach(alt)
 
         if logo_bytes:
             try:
                 cid = "company_logo_cid"
-                img = MIMEImage(logo_bytes)
+                # Detectar tipo real de imagen
+                mime_subtype = 'png'
+                try:
+                    test_img = Image.open(BytesIO(logo_bytes))
+                    fmt = (test_img.format or 'PNG').lower()
+                    mime_subtype = 'jpeg' if fmt in ('jpeg', 'jpg') else 'png'
+                except Exception:
+                    pass
+
+                img = MIMEImage(logo_bytes, _subtype=mime_subtype)
                 img.add_header('Content-ID', f'<{cid}>')
-                img.add_header('Content-Disposition', 'inline', filename='logo.png')
+                img.add_header('Content-Disposition', 'inline', filename=f'logo.{mime_subtype}')
                 img.add_header('X-Attachment-Id', cid)
                 msg.attach(img)
             except Exception as e:
-                print(f"Error logo: {e}")
+                print(f"Error adjuntando logo: {e}")
 
         ctx = ssl.create_default_context()
         with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
@@ -337,15 +379,13 @@ def enviar_correo(smtp_username, smtp_password, to_emails, cc_emails,
 # ============================================================
 
 def cargar_hojas(uploaded_file):
-    """Carga Names y TogglFilterDB del Excel subido."""
     xls = pd.ExcelFile(uploaded_file, engine='openpyxl')
-
     hojas = {re.sub(r'\s+', '', h).lower(): h for h in xls.sheet_names}
 
     if re.sub(r'\s+', '', HOJA_NAMES).lower() not in hojas:
-        raise ValueError(f"No se encontró la hoja '{HOJA_NAMES}'. Hojas disponibles: {xls.sheet_names}")
+        raise ValueError(f"Sheet '{HOJA_NAMES}' not found. Available: {xls.sheet_names}")
     if re.sub(r'\s+', '', HOJA_INCIDENTES).lower() not in hojas:
-        raise ValueError(f"No se encontró la hoja '{HOJA_INCIDENTES}'. Hojas disponibles: {xls.sheet_names}")
+        raise ValueError(f"Sheet '{HOJA_INCIDENTES}' not found. Available: {xls.sheet_names}")
 
     df_names = pd.read_excel(xls, sheet_name=hojas[re.sub(r'\s+', '', HOJA_NAMES).lower()])
     df_inc = pd.read_excel(xls, sheet_name=hojas[re.sub(r'\s+', '', HOJA_INCIDENTES).lower()])
@@ -353,27 +393,19 @@ def cargar_hojas(uploaded_file):
 
 
 def construir_mapa_usuarios(df_names):
-    """
-    Devuelve dict {nombre_normalizado: {nombre, prefix, email, cc}}.
-    Solo incluye usuarios con USER STATUS == 'Active'.
-    """
     mapa = {}
     for _, row in df_names.iterrows():
         nombre = row.get('NAME CORRECT')
         if pd.isna(nombre):
             continue
-
         status = str(row.get('USER STATUS', '')).strip().lower()
         if status != 'active':
             continue
-
         email = row.get('EMAIL')
         if pd.isna(email) or str(email).strip().lower() in ('disabled', ''):
             continue
-
         key = normalizar_nombre(nombre)
         cc = limpiar_emails(row.get('COPY_EMAIL_TG'))
-
         mapa[key] = {
             'nombre': str(nombre).strip(),
             'prefix': str(row.get('PREFIX', '')).strip() if not pd.isna(row.get('PREFIX')) else '',
@@ -385,22 +417,16 @@ def construir_mapa_usuarios(df_names):
 
 def procesar_y_enviar(df_names, df_inc, smtp_user, smtp_pass,
                      test_mode=False, dry_run=False):
-    """Devuelve (ok, mensaje, resumen_lista)."""
     resultados = []
-
     mapa_usuarios = construir_mapa_usuarios(df_names)
 
     if 'Member' not in df_inc.columns:
-        return False, f"La hoja '{HOJA_INCIDENTES}' no tiene columna 'Member'. Columnas: {list(df_inc.columns)}", []
+        return False, f"Sheet '{HOJA_INCIDENTES}' has no 'Member' column. Columns: {list(df_inc.columns)}", []
 
     logo_bytes = get_logo_bytes()
     logo_cid = "company_logo_cid" if logo_bytes else None
 
     df_inc = df_inc.copy()
-
-    # ============================================================
-    # MATCH: usamos 'Corrected Name' con fallback a 'Member'
-    # ============================================================
     if 'Corrected Name' in df_inc.columns:
         df_inc['_match_name'] = df_inc['Corrected Name'].where(
             df_inc['Corrected Name'].notna() & (df_inc['Corrected Name'].astype(str).str.strip() != ''),
@@ -421,7 +447,7 @@ def procesar_y_enviar(df_names, df_inc, smtp_user, smtp_pass,
             nombre_original = df_usuario['_match_name'].iloc[0]
             resultados.append({
                 'usuario': f"{nombre_original} (key: {member_key})",
-                'estado': '⚠️ No encontrado en Names o no está Active',
+                'estado': '⚠️ Not found in Names or not Active',
                 'incidencias': len(df_usuario),
                 'to': '-',
                 'cc': '-'
@@ -438,23 +464,23 @@ def procesar_y_enviar(df_names, df_inc, smtp_user, smtp_pass,
         if not to_emails:
             resultados.append({
                 'usuario': info['nombre'],
-                'estado': '⚠️ Sin destinatario',
+                'estado': '⚠️ No recipient',
                 'incidencias': len(df_usuario),
                 'to': '-',
                 'cc': '-'
             })
             continue
 
-        asunto = f"⚠️ Incidentes Toggl — {info['nombre']}"
+        asunto = f"Toggl Incident Report — {info['nombre']}"
         if test_mode:
-            asunto = f"[PRUEBA] {asunto}"
+            asunto = f"[TEST] {asunto}"
 
         html = generar_html_incidencias(info, df_usuario, logo_cid)
 
         if dry_run:
             resultados.append({
                 'usuario': info['nombre'],
-                'estado': '🧪 Simulado',
+                'estado': '🧪 Simulated',
                 'incidencias': len(df_usuario),
                 'to': ', '.join(to_emails),
                 'cc': ', '.join(cc_emails) if cc_emails else '-'
@@ -465,7 +491,7 @@ def procesar_y_enviar(df_names, df_inc, smtp_user, smtp_pass,
                                 asunto, html, logo_bytes)
         resultados.append({
             'usuario': info['nombre'],
-            'estado': '✅ Enviado' if ok else f'❌ {err[:80]}',
+            'estado': '✅ Sent' if ok else f'❌ {err[:80]}',
             'incidencias': len(df_usuario),
             'to': ', '.join(to_emails),
             'cc': ', '.join(cc_emails) if cc_emails else '-'
@@ -477,9 +503,9 @@ def procesar_y_enviar(df_names, df_inc, smtp_user, smtp_pass,
     errores = len(resultados) - enviados - simulados - advertencias
 
     if dry_run:
-        msg = f"🧪 Simulación: {simulados} correos se enviarían | {advertencias} advertencias | {errores} errores."
+        msg = f"🧪 Simulation: {simulados} emails would be sent | {advertencias} warnings | {errores} errors."
     else:
-        msg = f"✅ {enviados} enviados | ⚠️ {advertencias} advertencias | ❌ {errores} errores."
+        msg = f"✅ {enviados} sent | ⚠️ {advertencias} warnings | ❌ {errores} errors."
 
     return True, msg, resultados
 
@@ -494,49 +520,49 @@ else:
     st.markdown("""
     <div style="background: linear-gradient(135deg, #1a3a5c, #4a7c9c);
         padding: 20px 30px; border-radius: 10px; margin-bottom: 20px;">
-        <h1 style="color: white; margin: 0; font-size: 24px;">⚠️ Notificador de Incidentes Toggl</h1>
+        <h1 style="color: white; margin: 0; font-size: 24px;">⚠️ Toggl Incident Notifier</h1>
         <p style="color: rgba(255,255,255,0.9); margin: 4px 0 0 0;">
-            Detección y notificación de incidencias por usuario</p>
+            Per-user incident detection and notification</p>
     </div>
     """, unsafe_allow_html=True)
 
 with st.sidebar:
-    st.markdown("### 📧 Configuración SMTP")
-    smtp_username = st.text_input("Correo de Outlook", value="", placeholder="tu@email.com")
-    smtp_password = st.text_input("Contraseña", type="password", placeholder="••••••••")
+    st.markdown("### 📧 SMTP Configuration")
+    smtp_username = st.text_input("Outlook Email", value="", placeholder="you@email.com")
+    smtp_password = st.text_input("Password", type="password", placeholder="••••••••")
 
     st.markdown("---")
-    st.markdown("### 📁 Archivo de Datos")
+    st.markdown("### 📁 Data File")
     uploaded_file = st.file_uploader(
-        "Sube el Excel (hojas: Names + TogglFilterDB)",
+        "Upload the Excel file (sheets: Names + TogglFilterDB)",
         type=['xlsx', 'xls']
     )
 
     st.markdown("---")
-    st.markdown("### 🧪 Modo prueba")
-    test_mode = st.checkbox("Modo prueba (envía todo a tu correo)", value=True)
+    st.markdown("### 🧪 Test Mode")
+    test_mode = st.checkbox("Test mode (send everything to my email)", value=True)
 
     st.markdown("---")
     col1, col2 = st.columns(2)
     with col1:
-        btn_simular = st.button("📄 Simular", use_container_width=True)
+        btn_simular = st.button("📄 Simulate", use_container_width=True)
     with col2:
-        btn_enviar = st.button("📨 Enviar", type="primary", use_container_width=True)
+        btn_enviar = st.button("📨 Send", type="primary", use_container_width=True)
 
-    st.caption("🔒 TLS seguro · Sin almacenamiento")
+    st.caption("🔒 Secure TLS · No storage")
 
 if uploaded_file is not None:
     try:
         df_names, df_inc = cargar_hojas(uploaded_file)
 
-        st.markdown("### 📊 Resumen de datos")
+        st.markdown("### 📊 Data Summary")
         c1, c2, c3, c4 = st.columns(4)
-        c1.metric("Usuarios (Names)", len(df_names))
-        c2.metric("Incidencias (TogglFilterDB)", len(df_inc))
-        c3.metric("Usuarios con incidencia", df_inc['Member'].nunique() if 'Member' in df_inc.columns else 0)
-        c4.metric("Hoy", obtener_hora_local().strftime('%d/%m/%Y'))
+        c1.metric("Users (Names)", len(df_names))
+        c2.metric("Incidents (TogglFilterDB)", len(df_inc))
+        c3.metric("Users with incidents", df_inc['Member'].nunique() if 'Member' in df_inc.columns else 0)
+        c4.metric("Today", obtener_hora_local().strftime('%m/%d/%Y'))
 
-        with st.expander("👁️ Vista previa — Names (Active)"):
+        with st.expander("👁️ Preview — Names (Active)"):
             if 'USER STATUS' in df_names.columns:
                 df_active = df_names[df_names['USER STATUS'].astype(str).str.strip().str.lower() == 'active']
             else:
@@ -544,28 +570,28 @@ if uploaded_file is not None:
             cols_prev = [c for c in ['NAME CORRECT', 'PREFIX', 'EMAIL', 'COPY_EMAIL_TG'] if c in df_active.columns]
             st.dataframe(df_active[cols_prev].head(20), use_container_width=True)
 
-        with st.expander("👁️ Vista previa — TogglFilterDB"):
+        with st.expander("👁️ Preview — TogglFilterDB"):
             st.dataframe(df_inc.head(20), use_container_width=True)
 
         faltantes = [c for c in ['Member', 'Date', 'Duration', 'Type of incident'] if c not in df_inc.columns]
         if faltantes:
-            st.warning(f"⚠️ Faltan columnas en TogglFilterDB: {faltantes}. "
-                       f"Columnas actuales: {list(df_inc.columns)}")
+            st.warning(f"⚠️ Missing columns in TogglFilterDB: {faltantes}. "
+                       f"Current columns: {list(df_inc.columns)}")
 
         if btn_simular or btn_enviar:
             if btn_enviar and (not smtp_username or not smtp_password):
-                st.error("⚠️ Ingresa credenciales SMTP para enviar.")
+                st.error("⚠️ Enter SMTP credentials to send.")
             else:
                 if btn_enviar and not test_mode:
-                    st.warning("🔴 Envío REAL activado: los correos irán a los usuarios y sus CC.")
-                with st.spinner("Procesando..."):
+                    st.warning("🔴 REAL send enabled: emails will go to users and their CC.")
+                with st.spinner("Processing..."):
                     ok, msg, resultados = procesar_y_enviar(
                         df_names, df_inc,
                         smtp_username, smtp_password,
                         test_mode=test_mode,
                         dry_run=btn_simular
                     )
-                st.markdown("### 📋 Resultados")
+                st.markdown("### 📋 Results")
                 if ok:
                     st.success(msg)
                 else:
@@ -578,4 +604,4 @@ if uploaded_file is not None:
         st.error(f"❌ Error: {e}")
         st.code(traceback.format_exc())
 else:
-    st.info("📌 Sube el archivo Excel en la barra lateral para comenzar.")
+    st.info("📌 Upload the Excel file in the sidebar to begin.")
