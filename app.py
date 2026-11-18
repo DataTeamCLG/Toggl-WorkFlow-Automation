@@ -198,7 +198,7 @@ def formatear_fecha(valor):
         return str(valor)
 
 # ============================================================
-# HTML DEL CORREO (ESTRUCTURA 100% FIJA Y CON COLORES)
+# HTML DEL CORREO (ESTRUCTURA 100% FIJA, SIN BORDES Y CON AZUL CORPORATIVO)
 # ============================================================
 
 def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None):
@@ -217,19 +217,20 @@ def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None):
         tipo = row.get('Type of incident', row.get('Type of Incident', ''))
         obs = row.get('Observations', '')
         
+        # Filas alternas suaves, sin bordes inferiores
         bg_color = "#ffffff" if idx % 2 == 0 else "#f8fafc"
         
         filas += f"""
         <tr style="background-color: {bg_color};">
-            <td style="padding: 12px 15px; border-bottom: 1px solid #e2e8f0; color: #334155; font-size: 14px; white-space: nowrap;">{fecha}</td>
-            <td style="padding: 12px 15px; border-bottom: 1px solid #e2e8f0; color: #334155; font-size: 14px;">{proyecto}</td>
-            <td style="padding: 12px 15px; border-bottom: 1px solid #e2e8f0; font-size: 14px;">
+            <td style="padding: 12px 15px; color: #334155; font-size: 14px; white-space: nowrap;">{fecha}</td>
+            <td style="padding: 12px 15px; color: #334155; font-size: 14px;">{proyecto}</td>
+            <td style="padding: 12px 15px; font-size: 14px;">
                 <span style="background-color: #e0f2fe; color: #0369a1; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 700; white-space: nowrap;">{cliente}</span>
             </td>
-            <td style="padding: 12px 15px; border-bottom: 1px solid #e2e8f0; color: #334155; font-size: 14px;">{descripcion}</td>
-            <td style="padding: 12px 15px; border-bottom: 1px solid #e2e8f0; color: #012338; font-size: 14px; font-weight: 700; white-space: nowrap;">{duracion}</td>
-            <td style="padding: 12px 15px; border-bottom: 1px solid #e2e8f0; color: #b91c1c; font-size: 14px; font-weight: 700;">{tipo}</td>
-            <td style="padding: 12px 15px; border-bottom: 1px solid #e2e8f0; color: #64748b; font-size: 13px; font-style: italic;">{obs}</td>
+            <td style="padding: 12px 15px; color: #334155; font-size: 14px;">{descripcion}</td>
+            <td style="padding: 12px 15px; color: #012338; font-size: 14px; font-weight: 700; white-space: nowrap;">{duracion}</td>
+            <td style="padding: 12px 15px; color: #b91c1c; font-size: 14px; font-weight: 700;">{tipo}</td>
+            <td style="padding: 12px 15px; color: #64748b; font-size: 13px; font-style: italic;">{obs}</td>
         </tr>
         """
 
@@ -277,17 +278,17 @@ def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None):
                         The following <strong style="color: #ef4444; font-size: 16px;">{len(df_usuario)}</strong> incident(s) were identified and require your review:
                     </p>
 
-                    <!-- Tabla de Datos (Colores restaurados vía HTML puro) -->
-                    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="width: 100%; border-collapse: collapse; text-align: left; margin: 20px 0; border: 1px solid #cbd5e1;">
+                    <!-- Tabla de Datos (Sin bordes y con Azul Corporativo) -->
+                    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="width: 100%; border-collapse: collapse; text-align: left; margin: 20px 0;">
                         <thead>
-                            <tr style="background-color: #e8f0f8;">
-                                <th style="background-color: #e8f0f8; color: #012338; font-weight: 700; padding: 14px 15px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #b8d1e8; text-align: left;">Date</th>
-                                <th style="background-color: #e8f0f8; color: #012338; font-weight: 700; padding: 14px 15px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #b8d1e8; text-align: left;">Project (Activity)</th>
-                                <th style="background-color: #e8f0f8; color: #012338; font-weight: 700; padding: 14px 15px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #b8d1e8; text-align: left;">Client Tag</th>
-                                <th style="background-color: #e8f0f8; color: #012338; font-weight: 700; padding: 14px 15px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #b8d1e8; text-align: left;">Description</th>
-                                <th style="background-color: #e8f0f8; color: #012338; font-weight: 700; padding: 14px 15px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #b8d1e8; text-align: left;">Duration</th>
-                                <th style="background-color: #e8f0f8; color: #012338; font-weight: 700; padding: 14px 15px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #b8d1e8; text-align: left;">Type of Incident</th>
-                                <th style="background-color: #e8f0f8; color: #012338; font-weight: 700; padding: 14px 15px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #b8d1e8; text-align: left;">Observations</th>
+                            <tr style="background-color: #012338;">
+                                <th style="background-color: #012338; color: #ffffff; font-weight: 700; padding: 14px 15px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; text-align: left; border: none;">Date</th>
+                                <th style="background-color: #012338; color: #ffffff; font-weight: 700; padding: 14px 15px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; text-align: left; border: none;">Project (Activity)</th>
+                                <th style="background-color: #012338; color: #ffffff; font-weight: 700; padding: 14px 15px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; text-align: left; border: none;">Client Tag</th>
+                                <th style="background-color: #012338; color: #ffffff; font-weight: 700; padding: 14px 15px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; text-align: left; border: none;">Description</th>
+                                <th style="background-color: #012338; color: #ffffff; font-weight: 700; padding: 14px 15px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; text-align: left; border: none;">Duration</th>
+                                <th style="background-color: #012338; color: #ffffff; font-weight: 700; padding: 14px 15px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; text-align: left; border: none;">Type of Incident</th>
+                                <th style="background-color: #012338; color: #ffffff; font-weight: 700; padding: 14px 15px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; text-align: left; border: none;">Observations</th>
                             </tr>
                         </thead>
                         <tbody>
