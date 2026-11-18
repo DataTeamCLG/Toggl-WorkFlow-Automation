@@ -144,24 +144,46 @@ def normalizar_nombre(nombre):
 
 
 def formatear_duracion(valor):
+    """
+    Convierte cualquier entrada numérica a formato H:MM:SS.
+    Si Toggl exporta 1.19 horas, lo pasa a 1:11:24.
+    """
     if pd.isna(valor):
         return "0:00:00"
+    
+    # Si es un número (horas decimales desde Toggl)
     if isinstance(valor, (int, float)):
-        total_seg = int(round(valor * 86400))
+        total_seg = int(round(float(valor) * 3600))
         h, rem = divmod(total_seg, 3600)
         m, s = divmod(rem, 60)
         return f"{h}:{m:02d}:{s:02d}"
+        
     s = str(valor).strip()
+    
+    # Si viene con texto de días, lo limpiamos
     if "days" in s.lower() or "day" in s.lower():
         match = re.search(r'(\d+)', s)
         if match:
             h = int(match.group(1)) * 24
             return f"{h}:00:00"
+            
+    # Si ya viene en formato H:MM:SS
     if re.match(r'^\d+:\d{2}:\d{2}$', s):
         return s
+        
+    # Si viene en formato H:MM
     if re.match(r'^\d+:\d{2}$', s):
         return s + ":00"
-    return s
+        
+    # Si viene como un número decimal en string (ej. "1.19")
+    try:
+        val_float = float(s)
+        total_seg = int(round(val_float * 3600))
+        h, rem = divmod(total_seg, 3600)
+        m, s_dec = divmod(rem, 60)
+        return f"{h}:{m:02d}:{s_dec:02d}"
+    except ValueError:
+        return s
 
 
 def formatear_fecha(valor):
@@ -175,7 +197,7 @@ def formatear_fecha(valor):
         return str(valor)
 
 # ============================================================
-# HTML DEL CORREO (DISEÑO CORPORATIVO CON NUEVO AZUL)
+# HTML DEL CORREO (DISEÑO ANCHO Y PALETA CORPORATIVA)
 # ============================================================
 
 def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None, logo_data_uri=None):
@@ -194,19 +216,18 @@ def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None, logo_data_
         tipo = row.get('Type of incident', row.get('Type of Incident', ''))
         obs = row.get('Observations', '')
         
+        # Estilos de celda mejorados para aprovechar el ancho
         filas += f"""
         <tr>
-            <td style="padding: 12px 15px; border-bottom: 1px solid #e2e8f0; color: #334155; font-size: 13px;">{fecha}</td>
-            <td style="padding: 12px 15px; border-bottom: 1px solid #e2e8f0; color: #334155; font-size: 13px;">{proyecto}</td>
-            <td style="padding: 12px 15px; border-bottom: 1px solid #e2e8f0; color: #334155; font-size: 13px;">
-                <span style="background-color: #e0f2fe; color: #0369a1; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">
-                    {cliente}
-                </span>
+            <td style="padding: 14px 18px; border-bottom: 1px solid #e2e8f0; color: #334155; font-size: 13px; white-space: nowrap;">{fecha}</td>
+            <td style="padding: 14px 18px; border-bottom: 1px solid #e2e8f0; color: #334155; font-size: 13px;">{proyecto}</td>
+            <td style="padding: 14px 18px; border-bottom: 1px solid #e2e8f0; font-size: 13px;">
+                <span style="background-color: #e0f2fe; color: #0369a1; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 700; white-space: nowrap;">{cliente}</span>
             </td>
-            <td style="padding: 12px 15px; border-bottom: 1px solid #e2e8f0; color: #334155; font-size: 13px;">{descripcion}</td>
-            <td style="padding: 12px 15px; border-bottom: 1px solid #e2e8f0; color: #0f172a; font-size: 13px; font-weight: 600;">{duracion}</td>
-            <td style="padding: 12px 15px; border-bottom: 1px solid #e2e8f0; color: #b91c1c; font-size: 13px; font-weight: 600;">{tipo}</td>
-            <td style="padding: 12px 15px; border-bottom: 1px solid #e2e8f0; color: #64748b; font-size: 12px; font-style: italic;">{obs}</td>
+            <td style="padding: 14px 18px; border-bottom: 1px solid #e2e8f0; color: #334155; font-size: 13px;">{descripcion}</td>
+            <td style="padding: 14px 18px; border-bottom: 1px solid #e2e8f0; color: #012338; font-size: 13px; font-weight: 700; white-space: nowrap;">{duracion}</td>
+            <td style="padding: 14px 18px; border-bottom: 1px solid #e2e8f0; color: #b91c1c; font-size: 13px; font-weight: 700;">{tipo}</td>
+            <td style="padding: 14px 18px; border-bottom: 1px solid #e2e8f0; color: #64748b; font-size: 12px; font-style: italic;">{obs}</td>
         </tr>
         """
 
@@ -221,18 +242,19 @@ def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None, logo_data_
         """
 
     firma_html = f"""
-    <div style="margin-top: 35px; padding-top: 20px; border-top: 2px solid #cbd5e1; font-family: 'Segoe UI', 'Calibri', Arial, sans-serif;">
+    <div style="margin-top: 40px; padding-top: 25px; border-top: 2px solid #e2e8f0; font-family: 'Segoe UI', 'Calibri', Arial, sans-serif;">
         {logo_html}
         <div style="text-align: center;">
             <strong style="color: #012338; font-size: 15px;">{NOMBRE_EMPRESA}</strong><br>
-            <span style="color: #3b82f6; font-size: 12px; font-weight: 500;">{DEPARTAMENTO}</span><br>
-            <span style="color: #64748b; font-size: 11px; margin-top: 5px; display: inline-block;">
-                📞 {TELEFONO} &nbsp;|&nbsp; ✉️ <a href="mailto:{EMAIL_CONTACTO}" style="color: #2563eb; text-decoration: none;">{EMAIL_CONTACTO}</a> &nbsp;|&nbsp; 🌐 <a href="https://{SITIO_WEB}" style="color: #2563eb; text-decoration: none;">{SITIO_WEB}</a>
+            <span style="color: #0284c7; font-size: 12px; font-weight: 600;">{DEPARTAMENTO}</span><br>
+            <span style="color: #64748b; font-size: 11px; margin-top: 6px; display: inline-block;">
+                📞 {TELEFONO} &nbsp;|&nbsp; ✉️ <a href="mailto:{EMAIL_CONTACTO}" style="color: #0284c7; text-decoration: none;">{EMAIL_CONTACTO}</a> &nbsp;|&nbsp; 🌐 <a href="https://{SITIO_WEB}" style="color: #0284c7; text-decoration: none;">{SITIO_WEB}</a>
             </span>
         </div>
     </div>
     """
 
+    # Cambiamos el width al 95% con max-width para que se vea amplio pero no se desborde
     html = f"""
     <!DOCTYPE html>
     <html>
@@ -242,53 +264,60 @@ def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None, logo_data_
             body {{
                 font-family: 'Segoe UI', 'Calibri', Arial, sans-serif;
                 line-height: 1.6; color: #1e293b; margin: 0; padding: 0;
-                background-color: #f8fafc;
+                background-color: #f1f5f9;
             }}
             .wrapper {{
-                width: 100%; background-color: #f8fafc; padding: 30px 0;
+                width: 100%; background-color: #f1f5f9; padding: 40px 0;
             }}
+            /* Contenedor más ancho */
             .container {{
-                max-width: 950px; margin: 0 auto; background-color: #ffffff;
+                width: 95%; max-width: 1000px; margin: 0 auto; background-color: #ffffff;
                 border-radius: 8px; overflow: hidden;
-                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05); border: 1px solid #e2e8f0;
+                box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05); border: 1px solid #e2e8f0;
             }}
-            /* Banner con el nuevo color corporativo #012338 */
+            /* Banner con letras blancas y azul corporativo */
             .header {{
                 background-color: #012338;
-                padding: 25px 20px; text-align: center; color: #ffffff;
+                padding: 30px 20px; text-align: center;
             }}
-            .header h1 {{ margin: 0; font-size: 24px; font-weight: 700; letter-spacing: 0.5px; color: #ffffff; }}
-            .header p {{ margin: 8px 0 0 0; font-size: 14px; color: #93c5fd; font-weight: 500; }}
-            .content {{ padding: 30px; }}
+            .header h1 {{ margin: 0; font-size: 26px; font-weight: 700; letter-spacing: 0.5px; color: #ffffff; }}
+            .header p {{ margin: 8px 0 0 0; font-size: 14px; color: #7dd3fc; font-weight: 500; }}
+            
+            .content {{ padding: 40px; }}
+            
             .saludo {{
-                background-color: #f0f6fc; border-left: 4px solid #012338;
-                padding: 15px 20px; margin-bottom: 25px; border-radius: 0 4px 4px 0;
+                background-color: #f0f9ff; border-left: 4px solid #012338;
+                padding: 18px 24px; margin-bottom: 25px; border-radius: 0 6px 6px 0;
                 font-size: 16px; color: #012338;
             }}
             .saludo strong {{ font-weight: 700; color: #012338; }}
-            .intro {{ font-size: 14px; color: #475569; margin-bottom: 20px; }}
+            
+            .intro {{ font-size: 15px; color: #475569; margin-bottom: 20px; }}
             .badge-count {{
                 display: inline-block; background-color: #ef4444; color: #ffffff;
-                padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 700;
+                padding: 2px 10px; border-radius: 12px; font-size: 13px; font-weight: 700;
                 margin: 0 4px;
             }}
+            
             .tabla-wrapper {{
-                border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden; margin-bottom: 25px;
+                border: 1px solid #cbd5e1; border-radius: 8px; overflow: hidden; margin-bottom: 30px;
             }}
             .tabla-resumen {{ width: 100%; border-collapse: collapse; text-align: left; }}
-            /* Cabecera de tabla con tonos suaves */
+            
+            /* Encabezado de tabla con contraste elegante */
             .tabla-resumen th {{
-                background-color: #e8f0f8; color: #012338; font-weight: 700;
-                padding: 12px 15px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;
-                border-bottom: 2px solid #b8d1e8;
+                background-color: #f8fafc; color: #012338; font-weight: 700;
+                padding: 14px 18px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;
+                border-bottom: 2px solid #cbd5e1;
             }}
             .tabla-resumen tr:last-child td {{ border-bottom: none; }}
             .fila-tabla:hover {{ background-color: #f8fafc; }}
+            
             .agradecimiento {{
                 background-color: #f8fafc; border: 1px solid #e2e8f0;
-                padding: 20px; border-radius: 6px; text-align: left; font-size: 13px; color: #475569;
+                padding: 24px; border-radius: 8px; text-align: left; font-size: 14px; color: #475569;
             }}
-            .agradecimiento strong {{ color: #012338; }}
+            .agradecimiento strong {{ color: #012338; font-size: 15px; display: block; margin-bottom: 8px; }}
         </style>
     </head>
     <body>
@@ -329,7 +358,8 @@ def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None, logo_data_
                         </table>
                     </div>
                     <div class="agradecimiento">
-                        <strong>Action Required:</strong> We expect team members to correct their time entries, activities, and activity descriptions within a maximum period of 24 hours.<br><br>
+                        <strong>Action Required:</strong>
+                        We expect team members to correct their time entries, activities, and activity descriptions within a maximum period of 24 hours.<br><br>
                         Should you have any questions regarding this report, please contact the Quality Control & Efficiency Department.<br>
                         Thank you for your attention and cooperation.
                     </div>
