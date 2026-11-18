@@ -37,8 +37,8 @@ URL_BANNER_GITHUB = "https://raw.githubusercontent.com/Iamnotmanolotaco/Inmigrat
 
 NOMBRE_EMPRESA = "Community Law Group, PLLC® "
 DEPARTAMENTO = "Quality Control & Efficiency Department"
-TELEFONO = "+1 (615) 913-5576"
-EMAIL_CONTACTO = "data.analyst7@coomunitylawgroup.com"
+TELEFONO = "+1 (615) 913-5576" # Lo mantenemos en variables por si se necesita luego, pero no se envía
+EMAIL_CONTACTO = "executiveassistant2@communitylawgroup.com"
 SITIO_WEB = "www.communitylawgroup.com"
 
 TAMANO_LOGO = 120
@@ -198,7 +198,7 @@ def formatear_fecha(valor):
         return str(valor)
 
 # ============================================================
-# HTML DEL CORREO (ESTRUCTURA 100% FIJA, SIN BORDES Y CON AZUL CORPORATIVO)
+# HTML DEL CORREO (ESTRUCTURA 100% FIJA, SIN BORDES)
 # ============================================================
 
 def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None):
@@ -230,7 +230,8 @@ def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None):
             <td style="padding: 12px 15px; color: #334155; font-size: 14px;">{descripcion}</td>
             <td style="padding: 12px 15px; color: #012338; font-size: 14px; font-weight: 700; white-space: nowrap;">{duracion}</td>
             <td style="padding: 12px 15px; color: #b91c1c; font-size: 14px; font-weight: 700;">{tipo}</td>
-            <td style="padding: 12px 15px; color: #64748b; font-size: 13px; font-style: italic;">{obs}</td>
+            <!-- Observaciones en negrilla y color más oscuro -->
+            <td style="padding: 12px 15px; color: #0f172a; font-size: 13px; font-weight: 700; font-style: italic;">{obs}</td>
         </tr>
         """
 
@@ -314,7 +315,7 @@ def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None):
                                 <strong style="color: #012338; font-size: 16px; display: block; margin-bottom: 4px;">{NOMBRE_EMPRESA}</strong>
                                 <span style="color: #0284c7; font-size: 14px; font-weight: 600; display: block; margin-bottom: 8px;">{DEPARTAMENTO}</span>
                                 <span style="color: #64748b; font-size: 13px; display: inline-block;">
-                                    📞 {TELEFONO} &nbsp;|&nbsp; ✉️ <a href="mailto:{EMAIL_CONTACTO}" style="color: #0284c7; text-decoration: none;">{EMAIL_CONTACTO}</a> &nbsp;|&nbsp; 🌐 <a href="https://{SITIO_WEB}" style="color: #0284c7; text-decoration: none;">{SITIO_WEB}</a>
+                                    ✉️ <a href="mailto:{EMAIL_CONTACTO}" style="color: #0284c7; text-decoration: none;">{EMAIL_CONTACTO}</a> &nbsp;|&nbsp; 🌐 <a href="https://{SITIO_WEB}" style="color: #0284c7; text-decoration: none;">{SITIO_WEB}</a>
                                 </span>
                             </td>
                         </tr>
