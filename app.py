@@ -32,7 +32,7 @@ SMTP_SERVER = "smtp.office365.com"
 SMTP_PORT = 587
 
 # URL del nuevo logo
-URL_LOGO_GITHUB = "https://raw.githubusercontent.com/Iamnotmanolotaco/Toggl-WorkFlow-Automation/main/emailclg.png"
+URL_LOGO_GITHUB = "https://raw.githubusercontent.com/DataTeamCLG/Toggl-WorkFlow-Automation/main/emailclg.png"
 URL_BANNER_GITHUB = "https://raw.githubusercontent.com/Iamnotmanolotaco/Inmigration-USCIS-Alerts-Automation/main/banner.png"
 
 NOMBRE_EMPRESA = "Community Law Group, PLLC® "
