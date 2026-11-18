@@ -41,10 +41,10 @@ TELEFONO = "+1 (615) 913-5576"
 EMAIL_CONTACTO = "executiveassistant2@communitylawgroup.com"
 SITIO_WEB = "www.communitylawgroup.com"
 
-# Dimensiones y límites del logo
-TAMANO_LOGO = 200
-LOGO_WIDTH = 200
-LOGO_MAX_BYTES = 25000  # Límite de 25KB para evitar bloqueos de Outlook
+# Límites estrictos para que Outlook NUNCA bloquee la imagen
+TAMANO_LOGO = 150
+LOGO_WIDTH = 150
+LOGO_MAX_BYTES = 10000  # 10 KB máximo. Es el límite seguro para Outlook.
 
 ZONA_HORARIA = pytz.timezone('America/Bogota')
 
@@ -65,8 +65,7 @@ def get_image_from_github(url):
 
 def optimizar_logo(logo_bytes, target_width=LOGO_WIDTH, max_bytes=LOGO_MAX_BYTES):
     """
-    Optimiza el logo para que se vea claro (200px) y pese menos de 25KB.
-    Como la imagen tiene mucho detalle, usamos JPEG para comprimirla sin perder calidad.
+    Comprime agresivamente el logo a JPEG. Outlook bloquea imágenes > 15KB.
     """
     if logo_bytes is None:
         return None, None
@@ -74,7 +73,7 @@ def optimizar_logo(logo_bytes, target_width=LOGO_WIDTH, max_bytes=LOGO_MAX_BYTES
     try:
         original = Image.open(BytesIO(logo_bytes))
         
-        # Convertir a RGB con fondo blanco (JPEG no soporta transparencia)
+        # Convertir a RGB (JPEG no soporta transparencia)
         if original.mode in ('RGBA', 'LA', 'P'):
             original = original.convert('RGBA')
             rgb = Image.new("RGB", original.size, (255, 255, 255))
@@ -86,20 +85,20 @@ def optimizar_logo(logo_bytes, target_width=LOGO_WIDTH, max_bytes=LOGO_MAX_BYTES
         target_height = int(target_width * (h / w))
         img = rgb.resize((target_width, target_height), Image.Resampling.LANCZOS)
 
-        # Intentar JPEG con calidades decrecientes
-        for quality in (90, 85, 80, 75, 70, 65, 60, 55):
+        # Intentar JPEG con calidades decrecientes hasta que pese < 10KB
+        for quality in (85, 75, 65, 55, 45, 35):
             out = BytesIO()
             img.save(out, format='JPEG', quality=quality, optimize=True)
             data = out.getvalue()
             if len(data) <= max_bytes:
                 return data, 'jpeg'
 
-        # Si aún pesa mucho, reducir tamaño progresivamente
-        for width in (180, 160, 140, 120):
+        # Si aún pesa mucho, reducir tamaño
+        for width in (120, 100, 80):
             th = int(width * (h / w))
             small = img.resize((width, th), Image.Resampling.LANCZOS)
             out = BytesIO()
-            small.save(out, format='JPEG', quality=80, optimize=True)
+            small.save(out, format='JPEG', quality=75, optimize=True)
             data = out.getvalue()
             if len(data) <= max_bytes:
                 return data, 'jpeg'
@@ -158,14 +157,22 @@ def normalizar_nombre(nombre):
 
 
 def formatear_duracion(valor):
+    """
+    Retorna siempre el tiempo en formato H:MM:SS sin prefijos de días.
+    """
     if pd.isna(valor):
-        return ""
+        return "0:00:00"
     if isinstance(valor, (int, float)):
         total_seg = int(round(valor * 86400))
         h, rem = divmod(total_seg, 3600)
         m, s = divmod(rem, 60)
-        return f"{h:02d}:{m:02d}:{s:02d}"
+        return f"{h}:{m:02d}:{s:02d}"
     s = str(valor).strip()
+    if "days" in s.lower() or "day" in s.lower():
+        match = re.search(r'(\d+)', s)
+        if match:
+            h = int(match.group(1)) * 24
+            return f"{h}:00:00"
     if re.match(r'^\d+:\d{2}:\d{2}$', s):
         return s
     if re.match(r'^\d+:\d{2}$', s):
@@ -184,10 +191,10 @@ def formatear_fecha(valor):
         return str(valor)
 
 # ============================================================
-# HTML DEL CORREO (EN INGLÉS CORPORATIVO)
+# HTML DEL CORREO (CON DISEÑO Y LOGO BASE64/CID)
 # ============================================================
 
-def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None):
+def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None, logo_data_uri=None):
     saludo = obtener_saludo_en()
     prefix = usuario_info.get('prefix', '')
     nombre = usuario_info.get('nombre', '')
@@ -202,138 +209,147 @@ def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None):
         duracion = formatear_duracion(row.get('Duration', ''))
         tipo = row.get('Type of incident', row.get('Type of Incident', ''))
         obs = row.get('Observations', '')
+        
         filas += f"""
-        <tr class="fila-normal">
-            <td class="col-fecha">{fecha}</td>
-            <td class="col-proyecto">{proyecto}</td>
-            <td class="col-cliente">{cliente}</td>
-            <td class="col-desc">{descripcion}</td>
-            <td class="col-dur">{duracion}</td>
-            <td class="col-tipo">{tipo}</td>
-            <td class="col-obs">{obs}</td>
+        <tr class="fila-tabla">
+            <td style="padding: 12px 10px; border-bottom: 1px solid #e2e8f0; color: #334155; font-size: 13px;">{fecha}</td>
+            <td style="padding: 12px 10px; border-bottom: 1px solid #e2e8f0; color: #334155; font-size: 13px;">{proyecto}</td>
+            <td style="padding: 12px 10px; border-bottom: 1px solid #e2e8f0; color: #334155; font-size: 13px;">
+                <span style="background-color: #e0e7ff; color: #3730a3; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">
+                    {cliente}
+                </span>
+            </td>
+            <td style="padding: 12px 10px; border-bottom: 1px solid #e2e8f0; color: #334155; font-size: 13px;">{descripcion}</td>
+            <td style="padding: 12px 10px; border-bottom: 1px solid #e2e8f0; color: #0f172a; font-size: 13px; font-weight: 600;">{duracion}</td>
+            <td style="padding: 12px 10px; border-bottom: 1px solid #e2e8f0; color: #b91c1c; font-size: 13px; font-weight: 600;">{tipo}</td>
+            <td style="padding: 12px 10px; border-bottom: 1px solid #e2e8f0; color: #64748b; font-size: 12px; font-style: italic;">{obs}</td>
         </tr>
         """
 
     logo_html = ""
-    if logo_cid:
+    # Si tenemos Base64 lo usamos (funciona en Gmail/Apple), si no, usamos CID (Outlook)
+    img_src = logo_data_uri if logo_data_uri else (f"cid:{logo_cid}" if logo_cid else None)
+    if img_src:
         logo_html = f"""
-        <div style="text-align: center; margin-bottom: 15px;">
-            <img src="cid:{logo_cid}" alt="{NOMBRE_EMPRESA}" width="{TAMANO_LOGO}"
-                 style="width: {TAMANO_LOGO}px; height: auto; border: none; display: block; margin: 0 auto;">
+        <div style="text-align: center; margin-bottom: 12px;">
+            <img src="{img_src}" alt="{NOMBRE_EMPRESA}" width="{TAMANO_LOGO}"
+                 style="width: {TAMANO_LOGO}px; height: auto; border: none; display: block; margin: 0 auto; filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.1));">
         </div>
         """
 
     firma_html = f"""
-    <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #b8d1e8; font-family: 'Segoe UI', 'Calibri', Arial, sans-serif;">
+    <div style="margin-top: 35px; padding-top: 20px; border-top: 2px solid #cbd5e1; font-family: 'Segoe UI', 'Calibri', Arial, sans-serif;">
         {logo_html}
         <div style="text-align: center;">
-            <strong style="color: #1a3a5c; font-size: 14px;">{NOMBRE_EMPRESA}</strong><br>
-            <span style="color: #4a7c9c; font-size: 12px;">{DEPARTAMENTO}</span><br>
-            <span style="color: #666666; font-size: 11px;">
-                📞 {TELEFONO} | ✉️ <a href="mailto:{EMAIL_CONTACTO}" style="color: #4a7c9c; text-decoration: none;">{EMAIL_CONTACTO}</a> | 🌐 <a href="https://{SITIO_WEB}" style="color: #4a7c9c; text-decoration: none;">{SITIO_WEB}</a>
+            <strong style="color: #1e3a8a; font-size: 15px;">{NOMBRE_EMPRESA}</strong><br>
+            <span style="color: #3b82f6; font-size: 12px; font-weight: 500;">{DEPARTAMENTO}</span><br>
+            <span style="color: #64748b; font-size: 11px; margin-top: 5px; display: inline-block;">
+                📞 {TELEFONO} &nbsp;|&nbsp; ✉️ <a href="mailto:{EMAIL_CONTACTO}" style="color: #2563eb; text-decoration: none;">{EMAIL_CONTACTO}</a> &nbsp;|&nbsp; 🌐 <a href="https://{SITIO_WEB}" style="color: #2563eb; text-decoration: none;">{SITIO_WEB}</a>
             </span>
         </div>
     </div>
     """
 
     html = f"""
+    <!DOCTYPE html>
     <html>
     <head>
         <meta charset="utf-8">
         <style>
             body {{
                 font-family: 'Segoe UI', 'Calibri', Arial, sans-serif;
-                line-height: 1.5; color: #000000; margin: 0; padding: 0;
-                background-color: #f5f7fa;
+                line-height: 1.6; color: #1e293b; margin: 0; padding: 0;
+                background-color: #f1f5f9;
+            }}
+            .wrapper {{
+                width: 100%; background-color: #f1f5f9; padding: 30px 0;
             }}
             .container {{
-                max-width: 950px; margin: 0 auto; padding: 25px;
-                background-color: #ffffff; border: 1px solid #dce4ec;
+                max-width: 900px; margin: 0 auto; background-color: #ffffff;
+                border-radius: 8px; overflow: hidden;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05); border: 1px solid #e2e8f0;
             }}
             .header {{
-                background-color: #e8f0f8; padding: 20px;
-                border-bottom: 2px solid #b8d1e8; text-align: center;
+                background: linear-gradient(135deg, #1e3a8a, #3b82f6);
+                padding: 30px 20px; text-align: center; color: #ffffff;
             }}
-            .header h1 {{ margin: 0; font-size: 22px; font-weight: bold; color: #1a3a5c; }}
-            .header p {{ margin: 4px 0 0 0; font-size: 13px; color: #4a7c9c; }}
+            .header h1 {{ margin: 0; font-size: 24px; font-weight: 700; letter-spacing: 0.5px; }}
+            .header p {{ margin: 8px 0 0 0; font-size: 14px; color: #bfdbfe; font-weight: 500; }}
+            .content {{ padding: 30px; }}
             .saludo {{
-                background-color: #f0f6fc; border-left: 3px solid #4a7c9c;
-                padding: 12px 18px; margin: 20px 0; font-size: 15px; color: #000000;
+                background-color: #eff6ff; border-left: 4px solid #3b82f6;
+                padding: 15px 20px; margin-bottom: 25px; border-radius: 0 4px 4px 0;
+                font-size: 16px; color: #1e3a8a;
             }}
-            .saludo strong {{ color: #1a3a5c; font-weight: bold; }}
-            .intro {{
-                font-size: 14px; color: #000000; margin: 15px 0; line-height: 1.6;
+            .saludo strong {{ font-weight: 700; }}
+            .intro {{ font-size: 14px; color: #475569; margin-bottom: 20px; }}
+            .badge-count {{
+                display: inline-block; background-color: #ef4444; color: #ffffff;
+                padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 700;
+                margin: 0 4px;
             }}
-            .tabla-resumen {{
-                margin: 25px 0; border: 1px solid #dce4ec;
-                background-color: #ffffff; border-radius: 4px; overflow: hidden;
+            .tabla-wrapper {{
+                border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden; margin-bottom: 25px;
             }}
-            .tabla-resumen table {{ width: 100%; border-collapse: collapse; font-size: 12px; }}
+            .tabla-resumen {{ width: 100%; border-collapse: collapse; text-align: left; }}
             .tabla-resumen th {{
-                background-color: #e8f0f8; color: #1a3a5c; font-weight: bold;
-                padding: 10px 8px; text-align: left; border-bottom: 2px solid #b8d1e8;
-            }}
-            .tabla-resumen td {{
-                padding: 10px 8px; color: #000000;
-                border-bottom: 1px solid #e8edf2; vertical-align: top;
+                background-color: #1e3a8a; color: #ffffff; font-weight: 600;
+                padding: 12px 10px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;
             }}
             .tabla-resumen tr:last-child td {{ border-bottom: none; }}
-            .fila-normal:hover {{ background-color: #f8fafc; }}
+            .fila-tabla:hover {{ background-color: #f8fafc; }}
             .agradecimiento {{
-                background-color: #f0f6fc; padding: 12px 18px; margin-top: 25px;
-                text-align: left; font-size: 13px; color: #000000;
-                border-top: 1px solid #dce4ec; border-radius: 4px; line-height: 1.6;
+                background-color: #f8fafc; border: 1px solid #e2e8f0;
+                padding: 20px; border-radius: 6px; text-align: left; font-size: 13px; color: #475569;
             }}
-            .badge-count {{
-                display: inline-block; background-color: #1a3a5c; color: #ffffff;
-                padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: bold;
-            }}
+            .agradecimiento strong {{ color: #1e3a8a; }}
         </style>
     </head>
     <body>
-        <div class="container">
-            <div class="header">
-                <h1>⚠️ Toggl Incident Notification</h1>
-                <p>Time Entries Incident Report</p>
+        <div class="wrapper">
+            <div class="container">
+                <div class="header">
+                    <h1>⚠️ Toggl Incident Notification</h1>
+                    <p>Time Entries Incident Report</p>
+                </div>
+                <div class="content">
+                    <div class="saludo">
+                        <strong>{saludo_completo}</strong>
+                    </div>
+                    <div class="intro">
+                        As part of the training process for habits in Toggl — especially regarding the
+                        Timers component — we are sending you the incident report on Time Entries
+                        incidents detected in your account.
+                    </div>
+                    <div class="intro">
+                        The following <span class="badge-count">{len(df_usuario)}</span> incident(s) were identified and require your review:
+                    </div>
+                    <div class="tabla-wrapper">
+                        <table class="tabla-resumen">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Project (Activity)</th>
+                                    <th>Client Tag</th>
+                                    <th>Description</th>
+                                    <th>Duration</th>
+                                    <th>Type of Incident</th>
+                                    <th>Observations</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {filas}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="agradecimiento">
+                        <strong>Action Required:</strong> We expect team members to correct their time entries, activities, and activity descriptions within a maximum period of 24 hours.<br><br>
+                        Should you have any questions regarding this report, please contact the Quality Control & Efficiency Department.<br>
+                        Thank you for your attention and cooperation.
+                    </div>
+                </div>
+                {firma_html}
             </div>
-            <div class="saludo">
-                <strong>{saludo_completo}</strong>
-            </div>
-            <div class="intro">
-                As part of the training process for habits in Toggl — especially regarding the
-                Timers component — we are sending you the incident report on Time Entries
-                incidents detected in your account.
-            </div>
-            <div class="intro">
-                The following <span class="badge-count">{len(df_usuario)}</span>
-                incident(s) were identified and require your review:
-            </div>
-            <div class="tabla-resumen">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Date</th>
-                            <th>Project (Activity)</th>
-                            <th>Client Tag</th>
-                            <th>Description</th>
-                            <th>Duration</th>
-                            <th>Type of Incident</th>
-                            <th>Observations</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {filas}
-                    </tbody>
-                </table>
-            </div>
-            <div class="agradecimiento">
-                We expect team members to correct their time entries, activities, and activity
-                descriptions within a maximum period of 24 hours. Should you have any questions
-                regarding this report, please contact the Quality Control & Efficiency Department.
-                <br><br>
-                Thank you for your attention and cooperation.
-            </div>
-            {firma_html}
         </div>
     </body>
     </html>
@@ -347,7 +363,6 @@ def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None):
 def enviar_correo(smtp_username, smtp_password, to_emails, cc_emails,
                   subject, html_body, logo_bytes=None):
     try:
-        # Estructura MIME requerida por Outlook para renderizar imágenes
         msg = MIMEMultipart('related')
         msg['Subject'] = subject
         msg['From'] = smtp_username
@@ -356,7 +371,6 @@ def enviar_correo(smtp_username, smtp_password, to_emails, cc_emails,
             msg['CC'] = ", ".join(cc_emails)
         msg['X-Priority'] = '1'
 
-        # Contenedor alternative para el HTML
         msg_alt = MIMEMultipart('alternative')
         msg_alt.attach(MIMEText(html_body, 'html', 'utf-8'))
         msg.attach(msg_alt)
@@ -369,11 +383,12 @@ def enviar_correo(smtp_username, smtp_password, to_emails, cc_emails,
                 img.add_header('Content-ID', f'<{cid}>')
                 img.add_header('Content-Disposition', 'inline', filename='logo.jpeg')
                 img.add_header('X-Attachment-Id', cid)
+                # Forzamos base64 para que Outlook lo lea sin problemas
+                img.add_header('Content-Transfer-Encoding', 'base64')
                 msg.attach(img)
             except Exception as e:
                 print(f"Error adjuntando logo: {e}")
 
-        # Envío
         ctx = ssl.create_default_context()
         with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
             server.starttls(context=ctx)
@@ -432,9 +447,14 @@ def procesar_y_enviar(df_names, df_inc, smtp_user, smtp_pass,
     if 'Member' not in df_inc.columns:
         return False, f"Sheet '{HOJA_INCIDENTES}' has no 'Member' column. Columns: {list(df_inc.columns)}", []
 
-    # Obtener logo comprimido a JPEG
+    # Obtener logo ultra-ligero y su versión Base64
     logo_bytes, logo_mime = get_logo_bytes()
     logo_cid = "company_logo_cid" if logo_bytes else None
+    
+    logo_data_uri = None
+    if logo_bytes:
+        b64 = base64.b64encode(logo_bytes).decode('utf-8')
+        logo_data_uri = f"data:image/{logo_mime};base64,{b64}"
 
     df_inc = df_inc.copy()
     if 'Corrected Name' in df_inc.columns:
@@ -485,7 +505,7 @@ def procesar_y_enviar(df_names, df_inc, smtp_user, smtp_pass,
         if test_mode:
             asunto = f"[TEST] {asunto}"
 
-        html = generar_html_incidencias(info, df_usuario, logo_cid)
+        html = generar_html_incidencias(info, df_usuario, logo_cid, logo_data_uri)
 
         if dry_run:
             resultados.append({
