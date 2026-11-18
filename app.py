@@ -198,7 +198,7 @@ def formatear_fecha(valor):
         return str(valor)
 
 # ============================================================
-# HTML DEL CORREO (ESTRUCTURA 100% FIJA)
+# HTML DEL CORREO (ESTRUCTURA 100% FIJA Y CON COLORES)
 # ============================================================
 
 def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None):
@@ -234,7 +234,6 @@ def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None):
         """
 
     logo_html = ""
-    # Usamos SIEMPRE el CID nativo. Es el único que Outlook respeta al 100% en envíos masivos.
     if logo_cid:
         logo_html = f"""
         <img src="cid:{logo_cid}" alt="{NOMBRE_EMPRESA}" width="{TAMANO_LOGO}"
@@ -247,21 +246,8 @@ def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None):
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <style>
-            body {{
-                font-family: 'Segoe UI', 'Calibri', Arial, sans-serif;
-                line-height: 1.6; color: #1e293b; margin: 0; padding: 0;
-                background-color: #ffffff;
-            }}
-            a {{ color: #0284c7; text-decoration: none; }}
-            .tabla-resumen {{ width: 100%; border-collapse: collapse; text-align: left; margin: 20px 0; border: 1px solid #cbd5e1; }}
-            .tabla-resumen th {{
-                background-color: #012338; color: #ffffff; font-weight: 600;
-                padding: 14px 15px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;
-            }}
-        </style>
     </head>
-    <body style="margin: 0; padding: 0; background-color: #ffffff;">
+    <body style="margin: 0; padding: 0; background-color: #ffffff; font-family: 'Segoe UI', 'Calibri', Arial, sans-serif; line-height: 1.6; color: #1e293b;">
         <!-- Banner Superior Ancho Completo -->
         <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #012338;">
             <tr>
@@ -291,17 +277,17 @@ def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None):
                         The following <strong style="color: #ef4444; font-size: 16px;">{len(df_usuario)}</strong> incident(s) were identified and require your review:
                     </p>
 
-                    <!-- Tabla de Datos -->
-                    <table class="tabla-resumen" border="0" cellspacing="0" cellpadding="0">
+                    <!-- Tabla de Datos (Colores restaurados vía HTML puro) -->
+                    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="width: 100%; border-collapse: collapse; text-align: left; margin: 20px 0; border: 1px solid #cbd5e1;">
                         <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Project (Activity)</th>
-                                <th>Client Tag</th>
-                                <th>Description</th>
-                                <th>Duration</th>
-                                <th>Type of Incident</th>
-                                <th>Observations</th>
+                            <tr style="background-color: #e8f0f8;">
+                                <th style="background-color: #e8f0f8; color: #012338; font-weight: 700; padding: 14px 15px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #b8d1e8; text-align: left;">Date</th>
+                                <th style="background-color: #e8f0f8; color: #012338; font-weight: 700; padding: 14px 15px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #b8d1e8; text-align: left;">Project (Activity)</th>
+                                <th style="background-color: #e8f0f8; color: #012338; font-weight: 700; padding: 14px 15px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #b8d1e8; text-align: left;">Client Tag</th>
+                                <th style="background-color: #e8f0f8; color: #012338; font-weight: 700; padding: 14px 15px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #b8d1e8; text-align: left;">Description</th>
+                                <th style="background-color: #e8f0f8; color: #012338; font-weight: 700; padding: 14px 15px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #b8d1e8; text-align: left;">Duration</th>
+                                <th style="background-color: #e8f0f8; color: #012338; font-weight: 700; padding: 14px 15px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #b8d1e8; text-align: left;">Type of Incident</th>
+                                <th style="background-color: #e8f0f8; color: #012338; font-weight: 700; padding: 14px 15px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #b8d1e8; text-align: left;">Observations</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -327,7 +313,7 @@ def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None):
                                 <strong style="color: #012338; font-size: 16px; display: block; margin-bottom: 4px;">{NOMBRE_EMPRESA}</strong>
                                 <span style="color: #0284c7; font-size: 14px; font-weight: 600; display: block; margin-bottom: 8px;">{DEPARTAMENTO}</span>
                                 <span style="color: #64748b; font-size: 13px; display: inline-block;">
-                                    📞 {TELEFONO} &nbsp;|&nbsp; ✉️ <a href="mailto:{EMAIL_CONTACTO}">{EMAIL_CONTACTO}</a> &nbsp;|&nbsp; 🌐 <a href="https://{SITIO_WEB}">{SITIO_WEB}</a>
+                                    📞 {TELEFONO} &nbsp;|&nbsp; ✉️ <a href="mailto:{EMAIL_CONTACTO}" style="color: #0284c7; text-decoration: none;">{EMAIL_CONTACTO}</a> &nbsp;|&nbsp; 🌐 <a href="https://{SITIO_WEB}" style="color: #0284c7; text-decoration: none;">{SITIO_WEB}</a>
                                 </span>
                             </td>
                         </tr>
@@ -348,7 +334,6 @@ def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None):
 def enviar_correo(smtp_username, smtp_password, to_emails, cc_emails,
                   subject, html_body, logo_bytes=None):
     try:
-        # Estructura blindada para Outlook
         msg = MIMEMultipart('related')
         msg['Subject'] = subject
         msg['From'] = smtp_username
@@ -431,7 +416,6 @@ def procesar_y_enviar(df_names, df_inc, smtp_user, smtp_pass,
     if 'Member' not in df_inc.columns:
         return False, f"Sheet '{HOJA_INCIDENTES}' has no 'Member' column. Columns: {list(df_inc.columns)}", []
 
-    # Obtenemos el logo comprimido (máx 8KB)
     logo_bytes, logo_mime = get_logo_bytes()
     logo_cid = "company_logo_cid" if logo_bytes else None
 
@@ -506,7 +490,7 @@ def procesar_y_enviar(df_names, df_inc, smtp_user, smtp_pass,
             'cc': ', '.join(cc_emails) if cc_emails else '-'
         })
         
-        # PAUSA DE SEGURIDAD CLAVE: Evita que Office365 sature o bloquee la estructura
+        # BLINDAJE: Pausa de medio segundo entre correos para no saturar Office365
         time.sleep(0.5)
 
     enviados = sum(1 for r in resultados if r['estado'].startswith('✅'))
