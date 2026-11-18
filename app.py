@@ -145,17 +145,16 @@ def normalizar_nombre(nombre):
 
 def formatear_duracion(valor):
     """
-    Convierte cualquier entrada de duración a formato H:MM:SS.
-    Maneja datetime.time, timedelta, strings y floats de Toggl.
+    Fuerza la conversión correcta de la duración desde Pandas a String H:MM:SS
     """
     if pd.isna(valor):
         return "0:00:00"
     
-    # 1. Si Pandas lo leyó como objeto time (ej. datetime.time(0, 30))
+    # Si Pandas lo interpretó como hora nativa
     if isinstance(valor, time):
         return f"{valor.hour}:{valor.minute:02d}:{valor.second:02d}"
         
-    # 2. Si Pandas lo leyó como timedelta (ej. 0 days 00:30:00)
+    # Si Pandas lo interpretó como timedelta
     if isinstance(valor, timedelta):
         total_seg = int(valor.total_seconds())
         h, rem = divmod(total_seg, 3600)
@@ -164,22 +163,22 @@ def formatear_duracion(valor):
 
     s = str(valor).strip()
     
-    # 3. Si ya viene en formato H:MM:SS exacto (ej. "0:30:00")
+    # Si ya viene en formato H:MM:SS (ej. "0:30:00" o "1:45:00")
     if re.match(r'^\d+:\d{2}:\d{2}$', s):
         return s
         
-    # 4. Si viene en formato H:MM (ej. "0:30")
+    # Si viene en formato H:MM (ej. "0:30")
     if re.match(r'^\d+:\d{2}$', s):
         return s + ":00"
         
-    # 5. Si viene con texto de días
+    # Si trae días
     if "days" in s.lower() or "day" in s.lower():
         match = re.search(r'(\d+)', s)
         if match:
             h = int(match.group(1)) * 24
             return f"{h}:00:00"
             
-    # 6. Si es un número decimal en string (ej. "0.5" o "1.19")
+    # Si es un decimal en string (ej. "0.5")
     try:
         val_float = float(s)
         total_seg = int(round(val_float * 3600))
@@ -189,7 +188,7 @@ def formatear_duracion(valor):
     except ValueError:
         pass
         
-    # 7. Si el valor original es int o float directo
+    # Si es un número decimal directo
     if isinstance(valor, (int, float)):
         total_seg = int(round(float(valor) * 3600))
         h, rem = divmod(total_seg, 3600)
@@ -210,7 +209,7 @@ def formatear_fecha(valor):
         return str(valor)
 
 # ============================================================
-# HTML DEL CORREO (DISEÑO ANCHO, COLORIDO Y LEGIBLE)
+# HTML DEL CORREO (DISEÑO CORPORATIVO ANCHO Y ESTÁNDAR)
 # ============================================================
 
 def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None, logo_data_uri=None):
@@ -233,15 +232,15 @@ def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None, logo_data_
         
         filas += f"""
         <tr style="background-color: {bg_color};">
-            <td style="padding: 14px 18px; border-bottom: 1px solid #e2e8f0; color: #334155; font-size: 15px; white-space: nowrap;">{fecha}</td>
-            <td style="padding: 14px 18px; border-bottom: 1px solid #e2e8f0; color: #334155; font-size: 15px;">{proyecto}</td>
-            <td style="padding: 14px 18px; border-bottom: 1px solid #e2e8f0; font-size: 15px;">
-                <span style="background-color: #e0f2fe; color: #0369a1; padding: 4px 10px; border-radius: 4px; font-size: 13px; font-weight: 700; white-space: nowrap;">{cliente}</span>
+            <td style="padding: 12px 15px; border-bottom: 1px solid #e2e8f0; color: #334155; font-size: 14px; white-space: nowrap;">{fecha}</td>
+            <td style="padding: 12px 15px; border-bottom: 1px solid #e2e8f0; color: #334155; font-size: 14px;">{proyecto}</td>
+            <td style="padding: 12px 15px; border-bottom: 1px solid #e2e8f0; font-size: 14px;">
+                <span style="background-color: #e0f2fe; color: #0369a1; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 700; white-space: nowrap;">{cliente}</span>
             </td>
-            <td style="padding: 14px 18px; border-bottom: 1px solid #e2e8f0; color: #334155; font-size: 15px;">{descripcion}</td>
-            <td style="padding: 14px 18px; border-bottom: 1px solid #e2e8f0; color: #012338; font-size: 15px; font-weight: 700; white-space: nowrap;">{duracion}</td>
-            <td style="padding: 14px 18px; border-bottom: 1px solid #e2e8f0; color: #b91c1c; font-size: 15px; font-weight: 700;">{tipo}</td>
-            <td style="padding: 14px 18px; border-bottom: 1px solid #e2e8f0; color: #64748b; font-size: 14px; font-style: italic;">{obs}</td>
+            <td style="padding: 12px 15px; border-bottom: 1px solid #e2e8f0; color: #334155; font-size: 14px;">{descripcion}</td>
+            <td style="padding: 12px 15px; border-bottom: 1px solid #e2e8f0; color: #012338; font-size: 14px; font-weight: 700; white-space: nowrap;">{duracion}</td>
+            <td style="padding: 12px 15px; border-bottom: 1px solid #e2e8f0; color: #b91c1c; font-size: 14px; font-weight: 700;">{tipo}</td>
+            <td style="padding: 12px 15px; border-bottom: 1px solid #e2e8f0; color: #64748b; font-size: 13px; font-style: italic;">{obs}</td>
         </tr>
         """
 
@@ -249,134 +248,101 @@ def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None, logo_data_
     img_src = logo_data_uri if logo_data_uri else (f"cid:{logo_cid}" if logo_cid else None)
     if img_src:
         logo_html = f"""
-        <div style="text-align: center; margin-bottom: 12px;">
-            <img src="{img_src}" alt="{NOMBRE_EMPRESA}" width="{TAMANO_LOGO}"
-                 style="width: {TAMANO_LOGO}px; height: auto; border: none; display: block; margin: 0 auto;">
-        </div>
+        <img src="{img_src}" alt="{NOMBRE_EMPRESA}" width="{TAMANO_LOGO}"
+             style="width: {TAMANO_LOGO}px; height: auto; border: none; display: block; margin-bottom: 10px;">
         """
 
-    firma_html = f"""
-    <div style="margin-top: 40px; padding-top: 25px; border-top: 2px solid #e2e8f0; font-family: 'Segoe UI', 'Calibri', Arial, sans-serif;">
-        {logo_html}
-        <div style="text-align: center;">
-            <strong style="color: #012338; font-size: 16px;">{NOMBRE_EMPRESA}</strong><br>
-            <span style="color: #0284c7; font-size: 14px; font-weight: 600;">{DEPARTAMENTO}</span><br>
-            <span style="color: #64748b; font-size: 13px; margin-top: 6px; display: inline-block;">
-                📞 {TELEFONO} &nbsp;|&nbsp; ✉️ <a href="mailto:{EMAIL_CONTACTO}" style="color: #0284c7; text-decoration: none;">{EMAIL_CONTACTO}</a> &nbsp;|&nbsp; 🌐 <a href="https://{SITIO_WEB}" style="color: #0284c7; text-decoration: none;">{SITIO_WEB}</a>
-            </span>
-        </div>
-    </div>
-    """
-
+    # Estructura usando tablas clásicas (estándar de oro para Outlook)
     html = f"""
     <!DOCTYPE html>
     <html>
     <head>
         <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <style>
             body {{
                 font-family: 'Segoe UI', 'Calibri', Arial, sans-serif;
                 line-height: 1.6; color: #1e293b; margin: 0; padding: 0;
-                background-color: #e2e8f0;
+                background-color: #ffffff;
             }}
-            .wrapper {{
-                width: 100%; background-color: #e2e8f0; padding: 40px 0;
-            }}
-            .container {{
-                width: 95%; max-width: 1050px; margin: 0 auto; background-color: #ffffff;
-                border-radius: 10px; overflow: hidden;
-                box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08); border: 1px solid #cbd5e1;
-            }}
-            .header {{
-                background-color: #012338;
-                padding: 35px 20px; text-align: center;
-            }}
-            .header h1 {{ margin: 0; font-size: 28px; font-weight: 700; letter-spacing: 0.5px; color: #ffffff; }}
-            .header p {{ margin: 10px 0 0 0; font-size: 16px; color: #7dd3fc; font-weight: 500; letter-spacing: 0.5px; }}
-            
-            .content {{ padding: 40px; }}
-            
-            /* Saludo sin barra lateral */
-            .saludo {{
-                background-color: #f0f9ff; border: 1px solid #e0f2fe;
-                padding: 20px 25px; margin-bottom: 30px; border-radius: 8px;
-                font-size: 18px; color: #012338;
-            }}
-            .saludo strong {{ font-weight: 700; color: #012338; }}
-            
-            .intro {{ font-size: 16px; color: #334155; margin-bottom: 20px; }}
-            .badge-count {{
-                display: inline-block; background-color: #ef4444; color: #ffffff;
-                padding: 2px 12px; border-radius: 14px; font-size: 15px; font-weight: 700;
-                margin: 0 4px;
-            }}
-            
-            .tabla-wrapper {{
-                border: 1px solid #cbd5e1; border-radius: 8px; overflow: hidden; margin-bottom: 30px;
-            }}
-            .tabla-resumen {{ width: 100%; border-collapse: collapse; text-align: left; }}
-            
+            a {{ color: #0284c7; text-decoration: none; }}
+            .tabla-resumen {{ width: 100%; border-collapse: collapse; text-align: left; margin: 20px 0; border: 1px solid #cbd5e1; }}
             .tabla-resumen th {{
                 background-color: #012338; color: #ffffff; font-weight: 600;
-                padding: 16px 18px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;
+                padding: 14px 15px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;
             }}
-            .tabla-resumen tr:last-child td {{ border-bottom: none; }}
-            
-            /* Action Required sin barra lateral */
-            .agradecimiento {{
-                background-color: #eff6ff; border: 1px solid #bfdbfe;
-                padding: 25px; border-radius: 8px; text-align: left; font-size: 15px; color: #1e3a8a;
-            }}
-            .agradecimiento strong {{ color: #012338; font-size: 16px; display: block; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px; }}
         </style>
     </head>
-    <body>
-        <div class="wrapper">
-            <div class="container">
-                <div class="header">
-                    <h1>⚠️ Toggl Incident Notification</h1>
-                    <p>Time Entries Incident Report</p>
-                </div>
-                <div class="content">
-                    <div class="saludo">
-                        <strong>{saludo_completo}</strong>
+    <body style="margin: 0; padding: 0; background-color: #ffffff;">
+        <!-- Banner Superior Ancho Completo -->
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #012338;">
+            <tr>
+                <td align="center" style="padding: 30px 20px;">
+                    <h1 style="margin: 0; font-size: 26px; font-weight: 700; color: #ffffff; letter-spacing: 0.5px;">⚠️ Toggl Incident Notification</h1>
+                    <p style="margin: 8px 0 0 0; font-size: 15px; color: #7dd3fc; font-weight: 500;">Time Entries Incident Report</p>
+                </td>
+            </tr>
+        </table>
+
+        <!-- Cuerpo del Correo -->
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #ffffff;">
+            <tr>
+                <td style="padding: 30px 20px;">
+                    
+                    <!-- Saludo con color de fondo suave -->
+                    <div style="background-color: #f0f9ff; padding: 15px 20px; border-radius: 6px; margin-bottom: 25px;">
+                        <strong style="font-size: 18px; color: #012338;">{saludo_completo}</strong>
                     </div>
-                    <div class="intro">
+
+                    <p style="font-size: 15px; color: #334155; margin-bottom: 15px;">
                         As part of the training process for habits in Toggl — especially regarding the
                         Timers component — we are sending you the incident report on Time Entries
                         incidents detected in your account.
+                    </p>
+                    <p style="font-size: 15px; color: #334155; margin-bottom: 25px;">
+                        The following <strong style="color: #ef4444; font-size: 16px;">{len(df_usuario)}</strong> incident(s) were identified and require your review:
+                    </p>
+
+                    <!-- Tabla de Datos -->
+                    <table class="tabla-resumen" border="0" cellspacing="0" cellpadding="0">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Project (Activity)</th>
+                                <th>Client Tag</th>
+                                <th>Description</th>
+                                <th>Duration</th>
+                                <th>Type of Incident</th>
+                                <th>Observations</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {filas}
+                        </tbody>
+                    </table>
+
+                    <!-- Caja de Acción Requerida -->
+                    <div style="background-color: #eff6ff; border: 1px solid #bfdbfe; padding: 20px; border-radius: 6px; margin-top: 30px;">
+                        <strong style="color: #012338; font-size: 15px; display: block; margin-bottom: 10px; text-transform: uppercase;">Action Required:</strong>
+                        <span style="font-size: 14px; color: #1e3a8a;">
+                            We expect team members to correct their time entries, activities, and activity descriptions within a maximum period of 24 hours.<br><br>
+                            Should you have any questions regarding this report, please contact the Quality Control & Efficiency Department.<br>
+                            Thank you for your attention and cooperation.
+                        </span>
                     </div>
-                    <div class="intro">
-                        The following <span class="badge-count">{len(df_usuario)}</span> incident(s) were identified and require your review:
+
+                    <!-- Firma -->
+                    <div style="margin-top: 40px; padding-top: 25px; border-top: 2px solid #e2e8f0;">
+                        {logo_html}
+                        <strong style="color: #012338; font-size: 16px; display: block;">{NOMBRE_EMPRESA}</strong>
+                        <span style="color: #0284c7; font-size: 14px; font-weight: 600;">{DEPARTAMENTO}</span><br>
+                        <span style="color: #64748b; font-size: 13px; margin-top: 6px; display: inline-block;">
+                            📞 {TELEFONO} &nbsp;|&nbsp; ✉️ <a href="mailto:{EMAIL_CONTACTO}">{EMAIL_CONTACTO}</a> &nbsp;|&nbsp; 🌐 <a href="https://{SITIO_WEB}">{SITIO_WEB}</a>
+                        </span>
                     </div>
-                    <div class="tabla-wrapper">
-                        <table class="tabla-resumen">
-                            <thead>
-                                <tr>
-                                    <th>Date</th>
-                                    <th>Project (Activity)</th>
-                                    <th>Client Tag</th>
-                                    <th>Description</th>
-                                    <th>Duration</th>
-                                    <th>Type of Incident</th>
-                                    <th>Observations</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {filas}
-                            </tbody>
-                        </table>
-                    </div>
-                    <div class="agradecimiento">
-                        <strong>Action Required:</strong>
-                        We expect team members to correct their time entries, activities, and activity descriptions within a maximum period of 24 hours.<br><br>
-                        Should you have any questions regarding this report, please contact the Quality Control & Efficiency Department.<br>
-                        Thank you for your attention and cooperation.
-                    </div>
-                </div>
-                {firma_html}
-            </div>
-        </div>
+                </td>
+            </tr>
+        </table>
     </body>
     </html>
     """
