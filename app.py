@@ -249,10 +249,9 @@ def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None, logo_data_
     if img_src:
         logo_html = f"""
         <img src="{img_src}" alt="{NOMBRE_EMPRESA}" width="{TAMANO_LOGO}"
-             style="width: {TAMANO_LOGO}px; height: auto; border: none; display: block; margin-bottom: 10px;">
+             style="width: {TAMANO_LOGO}px; height: auto; border: none; display: block; margin: 0 auto 10px auto;">
         """
 
-    # Estructura usando tablas clásicas (estándar de oro para Outlook)
     html = f"""
     <!DOCTYPE html>
     <html>
@@ -331,15 +330,20 @@ def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None, logo_data_
                         </span>
                     </div>
 
-                    <!-- Firma -->
-                    <div style="margin-top: 40px; padding-top: 25px; border-top: 2px solid #e2e8f0;">
-                        {logo_html}
-                        <strong style="color: #012338; font-size: 16px; display: block;">{NOMBRE_EMPRESA}</strong>
-                        <span style="color: #0284c7; font-size: 14px; font-weight: 600;">{DEPARTAMENTO}</span><br>
-                        <span style="color: #64748b; font-size: 13px; margin-top: 6px; display: inline-block;">
-                            📞 {TELEFONO} &nbsp;|&nbsp; ✉️ <a href="mailto:{EMAIL_CONTACTO}">{EMAIL_CONTACTO}</a> &nbsp;|&nbsp; 🌐 <a href="https://{SITIO_WEB}">{SITIO_WEB}</a>
-                        </span>
-                    </div>
+                    <!-- Firma Centrada -->
+                    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin-top: 40px;">
+                        <tr>
+                            <td align="center" style="padding-top: 25px; border-top: 2px solid #e2e8f0; text-align: center;">
+                                {logo_html}
+                                <strong style="color: #012338; font-size: 16px; display: block; margin-bottom: 4px;">{NOMBRE_EMPRESA}</strong>
+                                <span style="color: #0284c7; font-size: 14px; font-weight: 600; display: block; margin-bottom: 8px;">{DEPARTAMENTO}</span>
+                                <span style="color: #64748b; font-size: 13px; display: inline-block;">
+                                    📞 {TELEFONO} &nbsp;|&nbsp; ✉️ <a href="mailto:{EMAIL_CONTACTO}">{EMAIL_CONTACTO}</a> &nbsp;|&nbsp; 🌐 <a href="https://{SITIO_WEB}">{SITIO_WEB}</a>
+                                </span>
+                            </td>
+                        </tr>
+                    </table>
+
                 </td>
             </tr>
         </table>
