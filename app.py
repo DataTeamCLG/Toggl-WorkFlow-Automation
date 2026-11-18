@@ -38,7 +38,7 @@ URL_BANNER_GITHUB = "https://raw.githubusercontent.com/Iamnotmanolotaco/Inmigrat
 NOMBRE_EMPRESA = "Community Law Group, PLLC® "
 DEPARTAMENTO = "Quality Control & Efficiency Department"
 TELEFONO = "+1 (615) 913-5576"
-EMAIL_CONTACTO = "executiveassistant2@communitylawgroup.com"
+EMAIL_CONTACTO = "data.analyst7@coomunitylawgroup.com"
 SITIO_WEB = "www.communitylawgroup.com"
 
 TAMANO_LOGO = 120
