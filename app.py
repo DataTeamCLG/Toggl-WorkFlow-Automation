@@ -26,27 +26,34 @@ st.set_page_config(
 )
 
 # ============================================================
-# CONFIGURACIÓN GENERAL Y SECRETS (SEGURO)
+# CONFIGURACIÓN GENERAL Y SECRETS (SEGURO + DIAGNÓSTICO)
 # ============================================================
 
-# Leer configuración SMTP desde Streamlit Secrets
 try:
     SMTP_SERVER = st.secrets["SMTP"]["SERVER"]
     SMTP_PORT = int(st.secrets["SMTP"]["PORT"])
     SMTP_USERNAME = st.secrets["SMTP"]["EMAIL"]
     SMTP_PASSWORD = st.secrets["SMTP"]["PASSWORD"]
-except Exception:
+    SMTP_ERROR = None
+except KeyError as e:
     SMTP_SERVER = None
     SMTP_PORT = None
     SMTP_USERNAME = None
     SMTP_PASSWORD = None
+    SMTP_ERROR = f"Falta la llave {e} en los Secrets."
+except Exception as e:
+    SMTP_SERVER = None
+    SMTP_PORT = None
+    SMTP_USERNAME = None
+    SMTP_PASSWORD = None
+    SMTP_ERROR = f"Error leyendo Secrets: {str(e)}"
 
 URL_LOGO_GITHUB = "https://raw.githubusercontent.com/DataTeamCLG/Toggl-WorkFlow-Automation/main/emailclg.png"
 URL_BANNER_GITHUB = "https://raw.githubusercontent.com/Iamnotmanolotaco/Inmigration-USCIS-Alerts-Automation/main/banner.png"
 
 NOMBRE_EMPRESA = "Community Law Group, PLLC® "
 DEPARTAMENTO = "Quality Control & Efficiency Department"
-EMAIL_CONTACTO = "data.analyst7@communitylawgroup.com"
+EMAIL_CONTACTO = "Data.analyst7@communitylawgroup.com"
 SITIO_WEB = "www.communitylawgroup.com"
 
 TAMANO_LOGO = 120
@@ -229,7 +236,7 @@ def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None):
         
         filas += f"""
         <tr style="background-color: {bg_color};">
-            <td style="padding: 12px 15px; color: #334155; font-size: 14px; white-space: nowrap;">{fecha}</td>
+            <td style="padding: 12px 15px; color: #334155; font-size: 14px; font-weight: 700; white-space: nowrap;">{fecha}</td>
             <td style="padding: 12px 15px; color: #334155; font-size: 14px;">{proyecto}</td>
             <td style="padding: 12px 15px; font-size: 14px;">
                 <span style="background-color: #e0f2fe; color: #0369a1; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 700; white-space: nowrap;">{cliente}</span>
@@ -466,7 +473,26 @@ def procesar_y_enviar(df_names, df_inc, smtp_server, smtp_port, smtp_username, s
             })
             continue
 
-        asunto = f"Toggl Incident Report — {info['nombre']}"
+        # Calcular fechas mínima y máxima para el asunto
+        try:
+            fechas_validas = pd.to_datetime(df_usuario['Date'], errors='coerce').dropna()
+            if not fechas_validas.empty:
+                min_date = fechas_validas.min().strftime('%m/%d/%Y')
+                max_date = fechas_validas.max().strftime('%m/%d/%Y')
+                if min_date == max_date:
+                    date_str = min_date
+                else:
+                    date_str = f"{min_date} - {max_date}"
+            else:
+                date_str = ""
+        except Exception:
+            date_str = ""
+
+        if date_str:
+            asunto = f"Toggl Incident Report - {info['nombre']} - {date_str}"
+        else:
+            asunto = f"Toggl Incident Report - {info['nombre']}"
+            
         if test_mode:
             asunto = f"[TEST] {asunto}"
 
@@ -547,7 +573,7 @@ with st.sidebar:
     if SMTP_SERVER and SMTP_PORT and SMTP_USERNAME and SMTP_PASSWORD:
         st.success("✅ SMTP credentials loaded securely")
     else:
-        st.error("⚠️ SMTP credentials not found. Please check your Streamlit Secrets.")
+        st.error(f"⚠️ SMTP credentials not found. {SMTP_ERROR if SMTP_ERROR else 'Please check your Streamlit Secrets.'}")
 
 if uploaded_file is not None:
     try:
