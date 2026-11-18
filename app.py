@@ -4,6 +4,7 @@ import smtplib
 import ssl
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from email.mime.image import MIMEImage
 import base64
 from datetime import datetime
 import requests
@@ -30,7 +31,7 @@ st.set_page_config(
 SMTP_SERVER = "smtp.office365.com"
 SMTP_PORT = 587
 
-# NUEVA URL DEL LOGO (emailclg)
+# URL del nuevo logo
 URL_LOGO_GITHUB = "https://raw.githubusercontent.com/Iamnotmanolotaco/Inmigration-USCIS-Alerts-Automation/main/emailclg.png"
 URL_BANNER_GITHUB = "https://raw.githubusercontent.com/Iamnotmanolotaco/Inmigration-USCIS-Alerts-Automation/main/banner.png"
 
@@ -40,10 +41,10 @@ TELEFONO = "+1 (615) 913-5576"
 EMAIL_CONTACTO = "executiveassistant2@communitylawgroup.com"
 SITIO_WEB = "www.communitylawgroup.com"
 
-# Logo: 200px visibles, pero obligamos a que pese muy poco
+# Dimensiones y límites del logo
 TAMANO_LOGO = 200
 LOGO_WIDTH = 200
-LOGO_MAX_BYTES = 25000  # Límite reducido a 25KB para asegurar que Outlook lo renderice
+LOGO_MAX_BYTES = 25000  # Límite de 25KB para evitar bloqueos de Outlook
 
 ZONA_HORARIA = pytz.timezone('America/Bogota')
 
@@ -51,7 +52,7 @@ HOJA_NAMES = "Names"
 HOJA_INCIDENTES = "TogglFilterDB"
 
 # ============================================================
-# RECURSOS (logo / banner)
+# RECURSOS (LOGO / BANNER)
 # ============================================================
 
 def get_image_from_github(url):
@@ -65,7 +66,7 @@ def get_image_from_github(url):
 def optimizar_logo(logo_bytes, target_width=LOGO_WIDTH, max_bytes=LOGO_MAX_BYTES):
     """
     Optimiza el logo para que se vea claro (200px) y pese menos de 25KB.
-    Como la imagen tiene mucho detalle, PNG no es viable -> usamos JPEG.
+    Como la imagen tiene mucho detalle, usamos JPEG para comprimirla sin perder calidad.
     """
     if logo_bytes is None:
         return None, None
@@ -73,8 +74,7 @@ def optimizar_logo(logo_bytes, target_width=LOGO_WIDTH, max_bytes=LOGO_MAX_BYTES
     try:
         original = Image.open(BytesIO(logo_bytes))
         
-        # Convertir a RGB (fondo blanco) porque JPEG no soporta transparencia
-        # y el logo tiene fondo blanco de todas formas
+        # Convertir a RGB con fondo blanco (JPEG no soporta transparencia)
         if original.mode in ('RGBA', 'LA', 'P'):
             original = original.convert('RGBA')
             rgb = Image.new("RGB", original.size, (255, 255, 255))
@@ -104,7 +104,6 @@ def optimizar_logo(logo_bytes, target_width=LOGO_WIDTH, max_bytes=LOGO_MAX_BYTES
             if len(data) <= max_bytes:
                 return data, 'jpeg'
 
-        # Último recurso
         return data, 'jpeg'
 
     except Exception:
@@ -112,19 +111,11 @@ def optimizar_logo(logo_bytes, target_width=LOGO_WIDTH, max_bytes=LOGO_MAX_BYTES
 
 
 def get_logo_bytes():
-    """Siempre usa el logo corporativo."""
+    """Obtiene y comprime el logo desde GitHub."""
     raw = get_image_from_github(URL_LOGO_GITHUB)
     if not raw:
         return None, None
     return optimizar_logo(raw, LOGO_WIDTH, LOGO_MAX_BYTES)
-
-
-def logo_to_base64_data_uri(logo_bytes, mime_subtype):
-    """Convierte el logo optimizado a data URI para incrustarlo en el HTML."""
-    if not logo_bytes:
-        return None
-    b64 = base64.b64encode(logo_bytes).decode('utf-8')
-    return f"data:image/{mime_subtype};base64,{b64}"
 
 
 def get_banner_base64():
@@ -196,7 +187,7 @@ def formatear_fecha(valor):
 # HTML DEL CORREO (EN INGLÉS CORPORATIVO)
 # ============================================================
 
-def generar_html_incidencias(usuario_info, df_usuario, logo_data_uri=None):
+def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None):
     saludo = obtener_saludo_en()
     prefix = usuario_info.get('prefix', '')
     nombre = usuario_info.get('nombre', '')
@@ -224,10 +215,10 @@ def generar_html_incidencias(usuario_info, df_usuario, logo_data_uri=None):
         """
 
     logo_html = ""
-    if logo_data_uri:
+    if logo_cid:
         logo_html = f"""
         <div style="text-align: center; margin-bottom: 15px;">
-            <img src="{logo_data_uri}" alt="{NOMBRE_EMPRESA}" width="{TAMANO_LOGO}"
+            <img src="cid:{logo_cid}" alt="{NOMBRE_EMPRESA}" width="{TAMANO_LOGO}"
                  style="width: {TAMANO_LOGO}px; height: auto; border: none; display: block; margin: 0 auto;">
         </div>
         """
@@ -354,9 +345,10 @@ def generar_html_incidencias(usuario_info, df_usuario, logo_data_uri=None):
 # ============================================================
 
 def enviar_correo(smtp_username, smtp_password, to_emails, cc_emails,
-                  subject, html_body):
+                  subject, html_body, logo_bytes=None):
     try:
-        msg = MIMEMultipart('alternative')
+        # Estructura MIME requerida por Outlook para renderizar imágenes
+        msg = MIMEMultipart('related')
         msg['Subject'] = subject
         msg['From'] = smtp_username
         msg['To'] = ", ".join(to_emails)
@@ -364,8 +356,24 @@ def enviar_correo(smtp_username, smtp_password, to_emails, cc_emails,
             msg['CC'] = ", ".join(cc_emails)
         msg['X-Priority'] = '1'
 
-        msg.attach(MIMEText(html_body, 'html', 'utf-8'))
+        # Contenedor alternative para el HTML
+        msg_alt = MIMEMultipart('alternative')
+        msg_alt.attach(MIMEText(html_body, 'html', 'utf-8'))
+        msg.attach(msg_alt)
 
+        # Adjuntamos el logo por CID
+        if logo_bytes:
+            try:
+                cid = "company_logo_cid"
+                img = MIMEImage(logo_bytes)
+                img.add_header('Content-ID', f'<{cid}>')
+                img.add_header('Content-Disposition', 'inline', filename='logo.jpeg')
+                img.add_header('X-Attachment-Id', cid)
+                msg.attach(img)
+            except Exception as e:
+                print(f"Error adjuntando logo: {e}")
+
+        # Envío
         ctx = ssl.create_default_context()
         with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
             server.starttls(context=ctx)
@@ -424,9 +432,9 @@ def procesar_y_enviar(df_names, df_inc, smtp_user, smtp_pass,
     if 'Member' not in df_inc.columns:
         return False, f"Sheet '{HOJA_INCIDENTES}' has no 'Member' column. Columns: {list(df_inc.columns)}", []
 
-    # Logo optimizado + data URI base64
+    # Obtener logo comprimido a JPEG
     logo_bytes, logo_mime = get_logo_bytes()
-    logo_data_uri = logo_to_base64_data_uri(logo_bytes, logo_mime) if logo_bytes else None
+    logo_cid = "company_logo_cid" if logo_bytes else None
 
     df_inc = df_inc.copy()
     if 'Corrected Name' in df_inc.columns:
@@ -477,7 +485,7 @@ def procesar_y_enviar(df_names, df_inc, smtp_user, smtp_pass,
         if test_mode:
             asunto = f"[TEST] {asunto}"
 
-        html = generar_html_incidencias(info, df_usuario, logo_data_uri)
+        html = generar_html_incidencias(info, df_usuario, logo_cid)
 
         if dry_run:
             resultados.append({
@@ -490,7 +498,7 @@ def procesar_y_enviar(df_names, df_inc, smtp_user, smtp_pass,
             continue
 
         ok, err = enviar_correo(smtp_user, smtp_pass, to_emails, cc_emails,
-                                asunto, html)
+                                asunto, html, logo_bytes)
         resultados.append({
             'usuario': info['nombre'],
             'estado': '✅ Sent' if ok else f'❌ {err[:80]}',
