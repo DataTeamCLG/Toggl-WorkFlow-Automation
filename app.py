@@ -2,11 +2,12 @@ import streamlit as st
 import pandas as pd
 import smtplib
 import ssl
+import time
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.image import MIMEImage
 import base64
-from datetime import datetime, time, timedelta
+from datetime import datetime, time as dt_time, timedelta
 import requests
 from io import BytesIO
 from PIL import Image
@@ -40,9 +41,9 @@ TELEFONO = "+1 (615) 913-5576"
 EMAIL_CONTACTO = "executiveassistant2@communitylawgroup.com"
 SITIO_WEB = "www.communitylawgroup.com"
 
-TAMANO_LOGO = 150
-LOGO_WIDTH = 150
-LOGO_MAX_BYTES = 10000
+TAMANO_LOGO = 120
+LOGO_WIDTH = 120
+LOGO_MAX_BYTES = 8000  # 8 KB: Tamaño ultra-ligero a prueba de Outlook
 
 ZONA_HORARIA = pytz.timezone('America/Bogota')
 
@@ -84,7 +85,7 @@ def optimizar_logo(logo_bytes, target_width=LOGO_WIDTH, max_bytes=LOGO_MAX_BYTES
             if len(data) <= max_bytes:
                 return data, 'jpeg'
 
-        for width in (120, 100, 80):
+        for width in (100, 80):
             th = int(width * (h / w))
             small = img.resize((width, th), Image.Resampling.LANCZOS)
             out = BytesIO()
@@ -144,17 +145,12 @@ def normalizar_nombre(nombre):
 
 
 def formatear_duracion(valor):
-    """
-    Fuerza la conversión correcta de la duración desde Pandas a String H:MM:SS
-    """
     if pd.isna(valor):
         return "0:00:00"
     
-    # Si Pandas lo interpretó como hora nativa
-    if isinstance(valor, time):
+    if isinstance(valor, dt_time):
         return f"{valor.hour}:{valor.minute:02d}:{valor.second:02d}"
         
-    # Si Pandas lo interpretó como timedelta
     if isinstance(valor, timedelta):
         total_seg = int(valor.total_seconds())
         h, rem = divmod(total_seg, 3600)
@@ -163,22 +159,16 @@ def formatear_duracion(valor):
 
     s = str(valor).strip()
     
-    # Si ya viene en formato H:MM:SS (ej. "0:30:00" o "1:45:00")
     if re.match(r'^\d+:\d{2}:\d{2}$', s):
         return s
-        
-    # Si viene en formato H:MM (ej. "0:30")
     if re.match(r'^\d+:\d{2}$', s):
         return s + ":00"
-        
-    # Si trae días
     if "days" in s.lower() or "day" in s.lower():
         match = re.search(r'(\d+)', s)
         if match:
             h = int(match.group(1)) * 24
             return f"{h}:00:00"
             
-    # Si es un decimal en string (ej. "0.5")
     try:
         val_float = float(s)
         total_seg = int(round(val_float * 3600))
@@ -188,7 +178,6 @@ def formatear_duracion(valor):
     except ValueError:
         pass
         
-    # Si es un número decimal directo
     if isinstance(valor, (int, float)):
         total_seg = int(round(float(valor) * 3600))
         h, rem = divmod(total_seg, 3600)
@@ -209,10 +198,10 @@ def formatear_fecha(valor):
         return str(valor)
 
 # ============================================================
-# HTML DEL CORREO (DISEÑO CORPORATIVO ANCHO Y ESTÁNDAR)
+# HTML DEL CORREO (ESTRUCTURA 100% FIJA)
 # ============================================================
 
-def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None, logo_data_uri=None):
+def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None):
     saludo = obtener_saludo_en()
     prefix = usuario_info.get('prefix', '')
     nombre = usuario_info.get('nombre', '')
@@ -245,10 +234,10 @@ def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None, logo_data_
         """
 
     logo_html = ""
-    img_src = logo_data_uri if logo_data_uri else (f"cid:{logo_cid}" if logo_cid else None)
-    if img_src:
+    # Usamos SIEMPRE el CID nativo. Es el único que Outlook respeta al 100% en envíos masivos.
+    if logo_cid:
         logo_html = f"""
-        <img src="{img_src}" alt="{NOMBRE_EMPRESA}" width="{TAMANO_LOGO}"
+        <img src="cid:{logo_cid}" alt="{NOMBRE_EMPRESA}" width="{TAMANO_LOGO}"
              style="width: {TAMANO_LOGO}px; height: auto; border: none; display: block; margin: 0 auto 10px auto;">
         """
 
@@ -353,12 +342,13 @@ def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None, logo_data_
     return html
 
 # ============================================================
-# ENVÍO DE CORREO
+# ENVÍO DE CORREO (BLINDADO)
 # ============================================================
 
 def enviar_correo(smtp_username, smtp_password, to_emails, cc_emails,
                   subject, html_body, logo_bytes=None):
     try:
+        # Estructura blindada para Outlook
         msg = MIMEMultipart('related')
         msg['Subject'] = subject
         msg['From'] = smtp_username
@@ -441,13 +431,9 @@ def procesar_y_enviar(df_names, df_inc, smtp_user, smtp_pass,
     if 'Member' not in df_inc.columns:
         return False, f"Sheet '{HOJA_INCIDENTES}' has no 'Member' column. Columns: {list(df_inc.columns)}", []
 
+    # Obtenemos el logo comprimido (máx 8KB)
     logo_bytes, logo_mime = get_logo_bytes()
     logo_cid = "company_logo_cid" if logo_bytes else None
-    
-    logo_data_uri = None
-    if logo_bytes:
-        b64 = base64.b64encode(logo_bytes).decode('utf-8')
-        logo_data_uri = f"data:image/{logo_mime};base64,{b64}"
 
     df_inc = df_inc.copy()
     if 'Corrected Name' in df_inc.columns:
@@ -498,7 +484,7 @@ def procesar_y_enviar(df_names, df_inc, smtp_user, smtp_pass,
         if test_mode:
             asunto = f"[TEST] {asunto}"
 
-        html = generar_html_incidencias(info, df_usuario, logo_cid, logo_data_uri)
+        html = generar_html_incidencias(info, df_usuario, logo_cid)
 
         if dry_run:
             resultados.append({
@@ -519,6 +505,9 @@ def procesar_y_enviar(df_names, df_inc, smtp_user, smtp_pass,
             'to': ', '.join(to_emails),
             'cc': ', '.join(cc_emails) if cc_emails else '-'
         })
+        
+        # PAUSA DE SEGURIDAD CLAVE: Evita que Office365 sature o bloquee la estructura
+        time.sleep(0.5)
 
     enviados = sum(1 for r in resultados if r['estado'].startswith('✅'))
     simulados = sum(1 for r in resultados if r['estado'].startswith('🧪'))
