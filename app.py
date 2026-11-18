@@ -20,7 +20,7 @@ import re
 # ============================================================
 
 st.set_page_config(
-    page_title="Toggl Incident Notifier",
+    page_title="Toggl Time Entry Compliance System",
     page_icon="⚠️",
     layout="wide"
 )
@@ -53,7 +53,7 @@ URL_BANNER_GITHUB = "https://raw.githubusercontent.com/Iamnotmanolotaco/Inmigrat
 
 NOMBRE_EMPRESA = "Community Law Group, PLLC® "
 DEPARTAMENTO = "Quality Control & Efficiency Department"
-EMAIL_CONTACTO = "Data.analyst7@communitylawgroup.com"
+EMAIL_CONTACTO = "data.analyst7@communitylawgroup.com"
 SITIO_WEB = "www.communitylawgroup.com"
 
 TAMANO_LOGO = 120
@@ -266,7 +266,7 @@ def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None):
         <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #012338;">
             <tr>
                 <td align="center" style="padding: 30px 20px;">
-                    <h1 style="margin: 0; font-size: 26px; font-weight: 700; color: #ffffff; letter-spacing: 0.5px;">⚠️ Toggl Incident Notification</h1>
+                    <h1 style="margin: 0; font-size: 26px; font-weight: 700; color: #ffffff; letter-spacing: 0.5px;">⚠️ Toggl Time Entry Compliance System</h1>
                     <p style="margin: 8px 0 0 0; font-size: 15px; color: #7dd3fc; font-weight: 500;">Time Entries Incident Report</p>
                 </td>
             </tr>
@@ -489,9 +489,9 @@ def procesar_y_enviar(df_names, df_inc, smtp_server, smtp_port, smtp_username, s
             date_str = ""
 
         if date_str:
-            asunto = f"Toggl Incident Report - {info['nombre']} - {date_str}"
+            asunto = f"Toggl Compliance Alert — {info['nombre']} — {date_str}"
         else:
-            asunto = f"Toggl Incident Report - {info['nombre']}"
+            asunto = f"Toggl Compliance Alert — {info['nombre']}"
             
         if test_mode:
             asunto = f"[TEST] {asunto}"
@@ -543,7 +543,7 @@ else:
     st.markdown("""
     <div style="background: linear-gradient(135deg, #1a3a5c, #4a7c9c);
         padding: 20px 30px; border-radius: 10px; margin-bottom: 20px;">
-        <h1 style="color: white; margin: 0; font-size: 24px;">⚠️ Toggl Incident Notifier</h1>
+        <h1 style="color: white; margin: 0; font-size: 24px;">⚠️ Toggl Time Entry Compliance System</h1>
         <p style="color: rgba(255,255,255,0.9); margin: 4px 0 0 0;">
             Per-user incident detection and notification</p>
     </div>
