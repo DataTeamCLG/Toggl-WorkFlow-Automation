@@ -26,18 +26,26 @@ st.set_page_config(
 )
 
 # ============================================================
-# CONFIGURACIÓN GENERAL
+# CONFIGURACIÓN GENERAL Y SECRETS (SEGURO)
 # ============================================================
 
-SMTP_SERVER = "smtp.office365.com"
-SMTP_PORT = 587
+# Leer configuración SMTP desde Streamlit Secrets
+try:
+    SMTP_SERVER = st.secrets["SMTP"]["SERVER"]
+    SMTP_PORT = int(st.secrets["SMTP"]["PORT"])
+    SMTP_USERNAME = st.secrets["SMTP"]["EMAIL"]
+    SMTP_PASSWORD = st.secrets["SMTP"]["PASSWORD"]
+except Exception:
+    SMTP_SERVER = None
+    SMTP_PORT = None
+    SMTP_USERNAME = None
+    SMTP_PASSWORD = None
 
 URL_LOGO_GITHUB = "https://raw.githubusercontent.com/DataTeamCLG/Toggl-WorkFlow-Automation/main/emailclg.png"
 URL_BANNER_GITHUB = "https://raw.githubusercontent.com/Iamnotmanolotaco/Inmigration-USCIS-Alerts-Automation/main/banner.png"
 
 NOMBRE_EMPRESA = "Community Law Group, PLLC® "
 DEPARTAMENTO = "Quality Control & Efficiency Department"
-TELEFONO = "+1 (615) 913-5576" # Lo mantenemos en variables por si se necesita luego, pero no se envía
 EMAIL_CONTACTO = "executiveassistant2@communitylawgroup.com"
 SITIO_WEB = "www.communitylawgroup.com"
 
@@ -198,7 +206,7 @@ def formatear_fecha(valor):
         return str(valor)
 
 # ============================================================
-# HTML DEL CORREO (ESTRUCTURA 100% FIJA, SIN BORDES)
+# HTML DEL CORREO
 # ============================================================
 
 def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None):
@@ -217,7 +225,6 @@ def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None):
         tipo = row.get('Type of incident', row.get('Type of Incident', ''))
         obs = row.get('Observations', '')
         
-        # Filas alternas suaves, sin bordes inferiores
         bg_color = "#ffffff" if idx % 2 == 0 else "#f8fafc"
         
         filas += f"""
@@ -230,7 +237,6 @@ def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None):
             <td style="padding: 12px 15px; color: #334155; font-size: 14px;">{descripcion}</td>
             <td style="padding: 12px 15px; color: #012338; font-size: 14px; font-weight: 700; white-space: nowrap;">{duracion}</td>
             <td style="padding: 12px 15px; color: #b91c1c; font-size: 14px; font-weight: 700;">{tipo}</td>
-            <!-- Observaciones en negrilla y color más oscuro -->
             <td style="padding: 12px 15px; color: #0f172a; font-size: 13px; font-weight: 700; font-style: italic;">{obs}</td>
         </tr>
         """
@@ -250,7 +256,6 @@ def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None):
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
     </head>
     <body style="margin: 0; padding: 0; background-color: #ffffff; font-family: 'Segoe UI', 'Calibri', Arial, sans-serif; line-height: 1.6; color: #1e293b;">
-        <!-- Banner Superior Ancho Completo -->
         <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #012338;">
             <tr>
                 <td align="center" style="padding: 30px 20px;">
@@ -260,12 +265,10 @@ def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None):
             </tr>
         </table>
 
-        <!-- Cuerpo del Correo -->
         <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #ffffff;">
             <tr>
                 <td style="padding: 30px 20px;">
                     
-                    <!-- Saludo con color de fondo suave -->
                     <div style="background-color: #f0f9ff; padding: 15px 20px; border-radius: 6px; margin-bottom: 25px;">
                         <strong style="font-size: 18px; color: #012338;">{saludo_completo}</strong>
                     </div>
@@ -279,7 +282,6 @@ def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None):
                         The following <strong style="color: #ef4444; font-size: 16px;">{len(df_usuario)}</strong> incident(s) were identified and require your review:
                     </p>
 
-                    <!-- Tabla de Datos (Sin bordes y con Azul Corporativo) -->
                     <table width="100%" border="0" cellspacing="0" cellpadding="0" style="width: 100%; border-collapse: collapse; text-align: left; margin: 20px 0;">
                         <thead>
                             <tr style="background-color: #012338;">
@@ -297,7 +299,6 @@ def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None):
                         </tbody>
                     </table>
 
-                    <!-- Caja de Acción Requerida -->
                     <div style="background-color: #eff6ff; border: 1px solid #bfdbfe; padding: 20px; border-radius: 6px; margin-top: 30px;">
                         <strong style="color: #012338; font-size: 15px; display: block; margin-bottom: 10px; text-transform: uppercase;">Action Required:</strong>
                         <span style="font-size: 14px; color: #1e3a8a;">
@@ -307,7 +308,6 @@ def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None):
                         </span>
                     </div>
 
-                    <!-- Firma Centrada -->
                     <table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin-top: 40px;">
                         <tr>
                             <td align="center" style="padding-top: 25px; border-top: 2px solid #e2e8f0; text-align: center;">
@@ -330,11 +330,11 @@ def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None):
     return html
 
 # ============================================================
-# ENVÍO DE CORREO (BLINDADO)
+# ENVÍO DE CORREO (BLINDADO Y SEGURO)
 # ============================================================
 
-def enviar_correo(smtp_username, smtp_password, to_emails, cc_emails,
-                  subject, html_body, logo_bytes=None):
+def enviar_correo(smtp_server, smtp_port, smtp_username, smtp_password,
+                  to_emails, cc_emails, subject, html_body, logo_bytes=None):
     try:
         msg = MIMEMultipart('related')
         msg['Subject'] = subject
@@ -361,7 +361,7 @@ def enviar_correo(smtp_username, smtp_password, to_emails, cc_emails,
                 print(f"Error adjuntando logo: {e}")
 
         ctx = ssl.create_default_context()
-        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+        with smtplib.SMTP(smtp_server, smtp_port) as server:
             server.starttls(context=ctx)
             server.login(smtp_username, smtp_password)
             server.sendmail(smtp_username, to_emails + (cc_emails or []), msg.as_string())
@@ -410,7 +410,7 @@ def construir_mapa_usuarios(df_names):
     return mapa
 
 
-def procesar_y_enviar(df_names, df_inc, smtp_user, smtp_pass,
+def procesar_y_enviar(df_names, df_inc, smtp_server, smtp_port, smtp_username, smtp_password,
                      test_mode=False, dry_run=False):
     resultados = []
     mapa_usuarios = construir_mapa_usuarios(df_names)
@@ -450,7 +450,7 @@ def procesar_y_enviar(df_names, df_inc, smtp_user, smtp_pass,
             continue
 
         if test_mode:
-            to_emails = [smtp_user] if smtp_user else []
+            to_emails = [smtp_username] if smtp_username else []
             cc_emails = []
         else:
             to_emails = [info['email']]
@@ -482,8 +482,8 @@ def procesar_y_enviar(df_names, df_inc, smtp_user, smtp_pass,
             })
             continue
 
-        ok, err = enviar_correo(smtp_user, smtp_pass, to_emails, cc_emails,
-                                asunto, html, logo_bytes)
+        ok, err = enviar_correo(smtp_server, smtp_port, smtp_username, smtp_password,
+                                to_emails, cc_emails, asunto, html, logo_bytes)
         resultados.append({
             'usuario': info['nombre'],
             'estado': '✅ Sent' if ok else f'❌ {err[:80]}',
@@ -492,7 +492,6 @@ def procesar_y_enviar(df_names, df_inc, smtp_user, smtp_pass,
             'cc': ', '.join(cc_emails) if cc_emails else '-'
         })
         
-        # BLINDAJE: Pausa de medio segundo entre correos para no saturar Office365
         time.sleep(0.5)
 
     enviados = sum(1 for r in resultados if r['estado'].startswith('✅'))
@@ -525,11 +524,6 @@ else:
     """, unsafe_allow_html=True)
 
 with st.sidebar:
-    st.markdown("### 📧 SMTP Configuration")
-    smtp_username = st.text_input("Outlook Email", value="", placeholder="you@email.com")
-    smtp_password = st.text_input("Password", type="password", placeholder="••••••••")
-
-    st.markdown("---")
     st.markdown("### 📁 Data File")
     uploaded_file = st.file_uploader(
         "Upload the Excel file (sheets: Names + TogglFilterDB)",
@@ -548,6 +542,12 @@ with st.sidebar:
         btn_enviar = st.button("📨 Send", type="primary", use_container_width=True)
 
     st.caption("🔒 Secure TLS · No storage")
+
+    # Validación visual de credenciales cargadas
+    if SMTP_SERVER and SMTP_PORT and SMTP_USERNAME and SMTP_PASSWORD:
+        st.success("✅ SMTP credentials loaded securely")
+    else:
+        st.error("⚠️ SMTP credentials not found. Please check your Streamlit Secrets.")
 
 if uploaded_file is not None:
     try:
@@ -577,15 +577,15 @@ if uploaded_file is not None:
                        f"Current columns: {list(df_inc.columns)}")
 
         if btn_simular or btn_enviar:
-            if btn_enviar and (not smtp_username or not smtp_password):
-                st.error("⚠️ Enter SMTP credentials to send.")
+            if not SMTP_SERVER or not SMTP_PORT or not SMTP_USERNAME or not SMTP_PASSWORD:
+                st.error("⚠️ No SMTP credentials found. Please configure them in Streamlit Secrets.")
             else:
                 if btn_enviar and not test_mode:
                     st.warning("🔴 REAL send enabled: emails will go to users and their CC.")
                 with st.spinner("Processing..."):
                     ok, msg, resultados = procesar_y_enviar(
                         df_names, df_inc,
-                        smtp_username, smtp_password,
+                        SMTP_SERVER, SMTP_PORT, SMTP_USERNAME, SMTP_PASSWORD,
                         test_mode=test_mode,
                         dry_run=btn_simular
                     )
