@@ -31,7 +31,6 @@ st.set_page_config(
 SMTP_SERVER = "smtp.office365.com"
 SMTP_PORT = 587
 
-# URL del nuevo logo
 URL_LOGO_GITHUB = "https://raw.githubusercontent.com/DataTeamCLG/Toggl-WorkFlow-Automation/main/emailclg.png"
 URL_BANNER_GITHUB = "https://raw.githubusercontent.com/Iamnotmanolotaco/Inmigration-USCIS-Alerts-Automation/main/banner.png"
 
@@ -41,10 +40,9 @@ TELEFONO = "+1 (615) 913-5576"
 EMAIL_CONTACTO = "executiveassistant2@communitylawgroup.com"
 SITIO_WEB = "www.communitylawgroup.com"
 
-# Límites estrictos para que Outlook NUNCA bloquee la imagen
 TAMANO_LOGO = 150
 LOGO_WIDTH = 150
-LOGO_MAX_BYTES = 10000  # 10 KB máximo. Es el límite seguro para Outlook.
+LOGO_MAX_BYTES = 10000  # 10 KB máximo para asegurar renderizado en Outlook
 
 ZONA_HORARIA = pytz.timezone('America/Bogota')
 
@@ -64,16 +62,10 @@ def get_image_from_github(url):
 
 
 def optimizar_logo(logo_bytes, target_width=LOGO_WIDTH, max_bytes=LOGO_MAX_BYTES):
-    """
-    Comprime agresivamente el logo a JPEG. Outlook bloquea imágenes > 15KB.
-    """
     if logo_bytes is None:
         return None, None
-
     try:
         original = Image.open(BytesIO(logo_bytes))
-        
-        # Convertir a RGB (JPEG no soporta transparencia)
         if original.mode in ('RGBA', 'LA', 'P'):
             original = original.convert('RGBA')
             rgb = Image.new("RGB", original.size, (255, 255, 255))
@@ -85,7 +77,6 @@ def optimizar_logo(logo_bytes, target_width=LOGO_WIDTH, max_bytes=LOGO_MAX_BYTES
         target_height = int(target_width * (h / w))
         img = rgb.resize((target_width, target_height), Image.Resampling.LANCZOS)
 
-        # Intentar JPEG con calidades decrecientes hasta que pese < 10KB
         for quality in (85, 75, 65, 55, 45, 35):
             out = BytesIO()
             img.save(out, format='JPEG', quality=quality, optimize=True)
@@ -93,7 +84,6 @@ def optimizar_logo(logo_bytes, target_width=LOGO_WIDTH, max_bytes=LOGO_MAX_BYTES
             if len(data) <= max_bytes:
                 return data, 'jpeg'
 
-        # Si aún pesa mucho, reducir tamaño
         for width in (120, 100, 80):
             th = int(width * (h / w))
             small = img.resize((width, th), Image.Resampling.LANCZOS)
@@ -102,15 +92,12 @@ def optimizar_logo(logo_bytes, target_width=LOGO_WIDTH, max_bytes=LOGO_MAX_BYTES
             data = out.getvalue()
             if len(data) <= max_bytes:
                 return data, 'jpeg'
-
         return data, 'jpeg'
-
     except Exception:
         return logo_bytes, 'png'
 
 
 def get_logo_bytes():
-    """Obtiene y comprime el logo desde GitHub."""
     raw = get_image_from_github(URL_LOGO_GITHUB)
     if not raw:
         return None, None
@@ -157,9 +144,6 @@ def normalizar_nombre(nombre):
 
 
 def formatear_duracion(valor):
-    """
-    Retorna siempre el tiempo en formato H:MM:SS sin prefijos de días.
-    """
     if pd.isna(valor):
         return "0:00:00"
     if isinstance(valor, (int, float)):
@@ -191,7 +175,7 @@ def formatear_fecha(valor):
         return str(valor)
 
 # ============================================================
-# HTML DEL CORREO (CON DISEÑO Y LOGO BASE64/CID)
+# HTML DEL CORREO (DISEÑO CORREGIDO)
 # ============================================================
 
 def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None, logo_data_uri=None):
@@ -210,30 +194,30 @@ def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None, logo_data_
         tipo = row.get('Type of incident', row.get('Type of Incident', ''))
         obs = row.get('Observations', '')
         
+        # Tabla con colores suaves y legibles
         filas += f"""
-        <tr class="fila-tabla">
-            <td style="padding: 12px 10px; border-bottom: 1px solid #e2e8f0; color: #334155; font-size: 13px;">{fecha}</td>
-            <td style="padding: 12px 10px; border-bottom: 1px solid #e2e8f0; color: #334155; font-size: 13px;">{proyecto}</td>
-            <td style="padding: 12px 10px; border-bottom: 1px solid #e2e8f0; color: #334155; font-size: 13px;">
-                <span style="background-color: #e0e7ff; color: #3730a3; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">
+        <tr>
+            <td style="padding: 12px 15px; border-bottom: 1px solid #e2e8f0; color: #334155; font-size: 13px;">{fecha}</td>
+            <td style="padding: 12px 15px; border-bottom: 1px solid #e2e8f0; color: #334155; font-size: 13px;">{proyecto}</td>
+            <td style="padding: 12px 15px; border-bottom: 1px solid #e2e8f0; color: #334155; font-size: 13px;">
+                <span style="background-color: #e0f2fe; color: #0369a1; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">
                     {cliente}
                 </span>
             </td>
-            <td style="padding: 12px 10px; border-bottom: 1px solid #e2e8f0; color: #334155; font-size: 13px;">{descripcion}</td>
-            <td style="padding: 12px 10px; border-bottom: 1px solid #e2e8f0; color: #0f172a; font-size: 13px; font-weight: 600;">{duracion}</td>
-            <td style="padding: 12px 10px; border-bottom: 1px solid #e2e8f0; color: #b91c1c; font-size: 13px; font-weight: 600;">{tipo}</td>
-            <td style="padding: 12px 10px; border-bottom: 1px solid #e2e8f0; color: #64748b; font-size: 12px; font-style: italic;">{obs}</td>
+            <td style="padding: 12px 15px; border-bottom: 1px solid #e2e8f0; color: #334155; font-size: 13px;">{descripcion}</td>
+            <td style="padding: 12px 15px; border-bottom: 1px solid #e2e8f0; color: #0f172a; font-size: 13px; font-weight: 600;">{duracion}</td>
+            <td style="padding: 12px 15px; border-bottom: 1px solid #e2e8f0; color: #b91c1c; font-size: 13px; font-weight: 600;">{tipo}</td>
+            <td style="padding: 12px 15px; border-bottom: 1px solid #e2e8f0; color: #64748b; font-size: 12px; font-style: italic;">{obs}</td>
         </tr>
         """
 
     logo_html = ""
-    # Si tenemos Base64 lo usamos (funciona en Gmail/Apple), si no, usamos CID (Outlook)
     img_src = logo_data_uri if logo_data_uri else (f"cid:{logo_cid}" if logo_cid else None)
     if img_src:
         logo_html = f"""
         <div style="text-align: center; margin-bottom: 12px;">
             <img src="{img_src}" alt="{NOMBRE_EMPRESA}" width="{TAMANO_LOGO}"
-                 style="width: {TAMANO_LOGO}px; height: auto; border: none; display: block; margin: 0 auto; filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.1));">
+                 style="width: {TAMANO_LOGO}px; height: auto; border: none; display: block; margin: 0 auto;">
         </div>
         """
 
@@ -259,29 +243,30 @@ def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None, logo_data_
             body {{
                 font-family: 'Segoe UI', 'Calibri', Arial, sans-serif;
                 line-height: 1.6; color: #1e293b; margin: 0; padding: 0;
-                background-color: #f1f5f9;
+                background-color: #f8fafc;
             }}
             .wrapper {{
-                width: 100%; background-color: #f1f5f9; padding: 30px 0;
+                width: 100%; background-color: #f8fafc; padding: 30px 0;
             }}
             .container {{
-                max-width: 900px; margin: 0 auto; background-color: #ffffff;
+                max-width: 950px; margin: 0 auto; background-color: #ffffff;
                 border-radius: 8px; overflow: hidden;
                 box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05); border: 1px solid #e2e8f0;
             }}
+            /* Usamos un color sólido en lugar de gradiente para que Outlook lo vea */
             .header {{
-                background: linear-gradient(135deg, #1e3a8a, #3b82f6);
-                padding: 30px 20px; text-align: center; color: #ffffff;
+                background-color: #1a3a5c;
+                padding: 25px 20px; text-align: center; color: #ffffff;
             }}
-            .header h1 {{ margin: 0; font-size: 24px; font-weight: 700; letter-spacing: 0.5px; }}
-            .header p {{ margin: 8px 0 0 0; font-size: 14px; color: #bfdbfe; font-weight: 500; }}
+            .header h1 {{ margin: 0; font-size: 24px; font-weight: 700; letter-spacing: 0.5px; color: #ffffff; }}
+            .header p {{ margin: 8px 0 0 0; font-size: 14px; color: #93c5fd; font-weight: 500; }}
             .content {{ padding: 30px; }}
             .saludo {{
-                background-color: #eff6ff; border-left: 4px solid #3b82f6;
+                background-color: #f0f6fc; border-left: 4px solid #4a7c9c;
                 padding: 15px 20px; margin-bottom: 25px; border-radius: 0 4px 4px 0;
-                font-size: 16px; color: #1e3a8a;
+                font-size: 16px; color: #1a3a5c;
             }}
-            .saludo strong {{ font-weight: 700; }}
+            .saludo strong {{ font-weight: 700; color: #1a3a5c; }}
             .intro {{ font-size: 14px; color: #475569; margin-bottom: 20px; }}
             .badge-count {{
                 display: inline-block; background-color: #ef4444; color: #ffffff;
@@ -289,12 +274,14 @@ def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None, logo_data_
                 margin: 0 4px;
             }}
             .tabla-wrapper {{
-                border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden; margin-bottom: 25px;
+                border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden; margin-bottom: 25px;
             }}
             .tabla-resumen {{ width: 100%; border-collapse: collapse; text-align: left; }}
+            /* Cabecera de tabla clara y elegante */
             .tabla-resumen th {{
-                background-color: #1e3a8a; color: #ffffff; font-weight: 600;
-                padding: 12px 10px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;
+                background-color: #e8f0f8; color: #1a3a5c; font-weight: 700;
+                padding: 12px 15px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;
+                border-bottom: 2px solid #b8d1e8;
             }}
             .tabla-resumen tr:last-child td {{ border-bottom: none; }}
             .fila-tabla:hover {{ background-color: #f8fafc; }}
@@ -302,7 +289,7 @@ def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None, logo_data_
                 background-color: #f8fafc; border: 1px solid #e2e8f0;
                 padding: 20px; border-radius: 6px; text-align: left; font-size: 13px; color: #475569;
             }}
-            .agradecimiento strong {{ color: #1e3a8a; }}
+            .agradecimiento strong {{ color: #1a3a5c; }}
         </style>
     </head>
     <body>
@@ -375,7 +362,6 @@ def enviar_correo(smtp_username, smtp_password, to_emails, cc_emails,
         msg_alt.attach(MIMEText(html_body, 'html', 'utf-8'))
         msg.attach(msg_alt)
 
-        # Adjuntamos el logo por CID
         if logo_bytes:
             try:
                 cid = "company_logo_cid"
@@ -383,7 +369,6 @@ def enviar_correo(smtp_username, smtp_password, to_emails, cc_emails,
                 img.add_header('Content-ID', f'<{cid}>')
                 img.add_header('Content-Disposition', 'inline', filename='logo.jpeg')
                 img.add_header('X-Attachment-Id', cid)
-                # Forzamos base64 para que Outlook lo lea sin problemas
                 img.add_header('Content-Transfer-Encoding', 'base64')
                 msg.attach(img)
             except Exception as e:
@@ -447,7 +432,6 @@ def procesar_y_enviar(df_names, df_inc, smtp_user, smtp_pass,
     if 'Member' not in df_inc.columns:
         return False, f"Sheet '{HOJA_INCIDENTES}' has no 'Member' column. Columns: {list(df_inc.columns)}", []
 
-    # Obtener logo ultra-ligero y su versión Base64
     logo_bytes, logo_mime = get_logo_bytes()
     logo_cid = "company_logo_cid" if logo_bytes else None
     
