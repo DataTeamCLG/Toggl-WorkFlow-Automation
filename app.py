@@ -175,7 +175,7 @@ def formatear_fecha(valor):
         return str(valor)
 
 # ============================================================
-# HTML DEL CORREO (DISEÑO CORREGIDO)
+# HTML DEL CORREO (DISEÑO CORPORATIVO CON NUEVO AZUL)
 # ============================================================
 
 def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None, logo_data_uri=None):
@@ -194,7 +194,6 @@ def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None, logo_data_
         tipo = row.get('Type of incident', row.get('Type of Incident', ''))
         obs = row.get('Observations', '')
         
-        # Tabla con colores suaves y legibles
         filas += f"""
         <tr>
             <td style="padding: 12px 15px; border-bottom: 1px solid #e2e8f0; color: #334155; font-size: 13px;">{fecha}</td>
@@ -225,7 +224,7 @@ def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None, logo_data_
     <div style="margin-top: 35px; padding-top: 20px; border-top: 2px solid #cbd5e1; font-family: 'Segoe UI', 'Calibri', Arial, sans-serif;">
         {logo_html}
         <div style="text-align: center;">
-            <strong style="color: #1e3a8a; font-size: 15px;">{NOMBRE_EMPRESA}</strong><br>
+            <strong style="color: #012338; font-size: 15px;">{NOMBRE_EMPRESA}</strong><br>
             <span style="color: #3b82f6; font-size: 12px; font-weight: 500;">{DEPARTAMENTO}</span><br>
             <span style="color: #64748b; font-size: 11px; margin-top: 5px; display: inline-block;">
                 📞 {TELEFONO} &nbsp;|&nbsp; ✉️ <a href="mailto:{EMAIL_CONTACTO}" style="color: #2563eb; text-decoration: none;">{EMAIL_CONTACTO}</a> &nbsp;|&nbsp; 🌐 <a href="https://{SITIO_WEB}" style="color: #2563eb; text-decoration: none;">{SITIO_WEB}</a>
@@ -253,20 +252,20 @@ def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None, logo_data_
                 border-radius: 8px; overflow: hidden;
                 box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05); border: 1px solid #e2e8f0;
             }}
-            /* Usamos un color sólido en lugar de gradiente para que Outlook lo vea */
+            /* Banner con el nuevo color corporativo #012338 */
             .header {{
-                background-color: #1a3a5c;
+                background-color: #012338;
                 padding: 25px 20px; text-align: center; color: #ffffff;
             }}
             .header h1 {{ margin: 0; font-size: 24px; font-weight: 700; letter-spacing: 0.5px; color: #ffffff; }}
             .header p {{ margin: 8px 0 0 0; font-size: 14px; color: #93c5fd; font-weight: 500; }}
             .content {{ padding: 30px; }}
             .saludo {{
-                background-color: #f0f6fc; border-left: 4px solid #4a7c9c;
+                background-color: #f0f6fc; border-left: 4px solid #012338;
                 padding: 15px 20px; margin-bottom: 25px; border-radius: 0 4px 4px 0;
-                font-size: 16px; color: #1a3a5c;
+                font-size: 16px; color: #012338;
             }}
-            .saludo strong {{ font-weight: 700; color: #1a3a5c; }}
+            .saludo strong {{ font-weight: 700; color: #012338; }}
             .intro {{ font-size: 14px; color: #475569; margin-bottom: 20px; }}
             .badge-count {{
                 display: inline-block; background-color: #ef4444; color: #ffffff;
@@ -277,9 +276,9 @@ def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None, logo_data_
                 border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden; margin-bottom: 25px;
             }}
             .tabla-resumen {{ width: 100%; border-collapse: collapse; text-align: left; }}
-            /* Cabecera de tabla clara y elegante */
+            /* Cabecera de tabla con tonos suaves */
             .tabla-resumen th {{
-                background-color: #e8f0f8; color: #1a3a5c; font-weight: 700;
+                background-color: #e8f0f8; color: #012338; font-weight: 700;
                 padding: 12px 15px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;
                 border-bottom: 2px solid #b8d1e8;
             }}
@@ -289,7 +288,7 @@ def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None, logo_data_
                 background-color: #f8fafc; border: 1px solid #e2e8f0;
                 padding: 20px; border-radius: 6px; text-align: left; font-size: 13px; color: #475569;
             }}
-            .agradecimiento strong {{ color: #1a3a5c; }}
+            .agradecimiento strong {{ color: #012338; }}
         </style>
     </head>
     <body>
