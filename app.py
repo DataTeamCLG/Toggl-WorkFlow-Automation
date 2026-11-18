@@ -30,6 +30,7 @@ st.set_page_config(
 SMTP_SERVER = "smtp.office365.com"
 SMTP_PORT = 587
 
+# NUEVA URL DEL LOGO (emailclg)
 URL_LOGO_GITHUB = "https://raw.githubusercontent.com/Iamnotmanolotaco/Inmigration-USCIS-Alerts-Automation/main/emailclg.png"
 URL_BANNER_GITHUB = "https://raw.githubusercontent.com/Iamnotmanolotaco/Inmigration-USCIS-Alerts-Automation/main/banner.png"
 
@@ -39,10 +40,10 @@ TELEFONO = "+1 (615) 913-5576"
 EMAIL_CONTACTO = "executiveassistant2@communitylawgroup.com"
 SITIO_WEB = "www.communitylawgroup.com"
 
-# Logo: 200px visibles, optimizado a <45KB
+# Logo: 200px visibles, pero obligamos a que pese muy poco
 TAMANO_LOGO = 200
 LOGO_WIDTH = 200
-LOGO_MAX_BYTES = 45000
+LOGO_MAX_BYTES = 25000  # Límite reducido a 25KB para asegurar que Outlook lo renderice
 
 ZONA_HORARIA = pytz.timezone('America/Bogota')
 
@@ -63,71 +64,55 @@ def get_image_from_github(url):
 
 def optimizar_logo(logo_bytes, target_width=LOGO_WIDTH, max_bytes=LOGO_MAX_BYTES):
     """
-    Optimiza clgam.png para que se vea claro (200px) y pese poco (<45KB).
-    Estrategia:
-      1. Redimensionar a target_width.
-      2. PNG 8-bit con paleta de 256 colores.
-      3. PNG RGBA optimizado normal.
-      4. JPEG calidad 90 (fondo blanco).
-      5. Reducir ancho progresivamente con JPEG.
-    Devuelve (bytes, mime_subtype).
+    Optimiza el logo para que se vea claro (200px) y pese menos de 25KB.
+    Como la imagen tiene mucho detalle, PNG no es viable -> usamos JPEG.
     """
     if logo_bytes is None:
         return None, None
 
     try:
         original = Image.open(BytesIO(logo_bytes))
-        img = original.convert("RGBA")
-        w, h = img.size
-        target_height = int(target_width * (h / w))
-        img = img.resize((target_width, target_height), Image.Resampling.LANCZOS)
+        
+        # Convertir a RGB (fondo blanco) porque JPEG no soporta transparencia
+        # y el logo tiene fondo blanco de todas formas
+        if original.mode in ('RGBA', 'LA', 'P'):
+            original = original.convert('RGBA')
+            rgb = Image.new("RGB", original.size, (255, 255, 255))
+            rgb.paste(original, mask=original.split()[-1])
+        else:
+            rgb = original.convert("RGB")
 
-        # Intento 1: PNG 8-bit con paleta adaptativa (mantiene transparencia, pesa poco)
-        try:
-            png_palette = img.convert("P", palette=Image.ADAPTIVE, colors=256)
+        w, h = rgb.size
+        target_height = int(target_width * (h / w))
+        img = rgb.resize((target_width, target_height), Image.Resampling.LANCZOS)
+
+        # Intentar JPEG con calidades decrecientes
+        for quality in (90, 85, 80, 75, 70, 65, 60, 55):
             out = BytesIO()
-            png_palette.save(out, format='PNG', optimize=True)
+            img.save(out, format='JPEG', quality=quality, optimize=True)
             data = out.getvalue()
             if len(data) <= max_bytes:
-                return data, 'png'
-        except Exception:
-            pass
+                return data, 'jpeg'
 
-        # Intento 2: PNG RGBA optimizado normal
-        out = BytesIO()
-        img.save(out, format='PNG', optimize=True)
-        data = out.getvalue()
-        if len(data) <= max_bytes:
-            return data, 'png'
-
-        # Intento 3: JPEG calidad 90 (fondo blanco)
-        rgb = Image.new("RGB", img.size, (255, 255, 255))
-        rgb.paste(img, mask=img.split()[-1])
-        out = BytesIO()
-        rgb.save(out, format='JPEG', quality=90, optimize=True)
-        data = out.getvalue()
-        if len(data) <= max_bytes:
-            return data, 'jpeg'
-
-        # Intento 4: reducir ancho progresivamente con JPEG
-        last_data = data
+        # Si aún pesa mucho, reducir tamaño progresivamente
         for width in (180, 160, 140, 120):
             th = int(width * (h / w))
-            small = rgb.resize((width, th), Image.Resampling.LANCZOS)
+            small = img.resize((width, th), Image.Resampling.LANCZOS)
             out = BytesIO()
-            small.save(out, format='JPEG', quality=88, optimize=True)
-            last_data = out.getvalue()
-            if len(last_data) <= max_bytes:
-                return last_data, 'jpeg'
+            small.save(out, format='JPEG', quality=80, optimize=True)
+            data = out.getvalue()
+            if len(data) <= max_bytes:
+                return data, 'jpeg'
 
-        return last_data, 'jpeg'
+        # Último recurso
+        return data, 'jpeg'
 
     except Exception:
         return logo_bytes, 'png'
 
 
 def get_logo_bytes():
-    """Siempre usa clgam.png (logo corporativo). Sin fallback al banner."""
+    """Siempre usa el logo corporativo."""
     raw = get_image_from_github(URL_LOGO_GITHUB)
     if not raw:
         return None, None
