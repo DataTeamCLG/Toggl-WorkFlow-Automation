@@ -447,6 +447,7 @@ def generar_html_pendientes(usuario_info, df_usuario, logo_cid=None):
                     <div style="background-color: #eff6ff; border: 1px solid #bfdbfe; padding: 20px; border-radius: 6px; margin-top: 30px;">
                         <strong style="color: #012338; font-size: 15px; display: block; margin-bottom: 10px; text-transform: uppercase;">Action Required:</strong>
                         <span style="font-size: 14px; color: #1e3a8a;">
+                            Please be advised that all time entries must be corrected within a maximum period of 24 hours. It is not acceptable to have time entries remain uncorrected beyond this established timeframe. We kindly ask that you address these items immediately to ensure full compliance with our quality standards.<br><br>
                             Thank you for your prompt attention to this matter.
                         </span>
                     </div>
