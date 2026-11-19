@@ -266,21 +266,26 @@ def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None):
         <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #012338;">
             <tr>
                 <td align="center" style="padding: 30px 20px;">
-                    <!-- Línea decorativa superior -->
-                    <div style="width: 40px; height: 3px; background-color: #7dd3fc; margin: 0 auto 15px auto; border-radius: 2px;"></div>
                     
-                    <h1 style="margin: 0; font-size: 26px; font-weight: 700; color: #ffffff; letter-spacing: 0.5px;">
-                        <span style="font-size: 22px; vertical-align: middle; margin-right: 8px;">💠</span>
-                        Toggl Time Entry Compliance System
-                    </h1>
+                    <!-- Contenedor de ancho automático (se adapta al título) -->
+                    <div style="display: inline-block; text-align: center;">
+                        <!-- Línea decorativa superior (ancho exacto del título) -->
+                        <div style="width: 100%; height: 3px; background-color: #7dd3fc; margin: 0 auto 15px auto; border-radius: 2px;"></div>
+                        
+                        <h1 style="margin: 0; font-size: 26px; font-weight: 700; color: #ffffff; letter-spacing: 0.5px;">
+                            <span style="font-size: 22px; vertical-align: middle; margin-right: 8px;">💠</span>
+                            Toggl Time Entry Compliance System
+                        </h1>
+                        
+                        <!-- Subtítulo con separador (ancho fijo) -->
+                        <p style="margin: 10px 0 0 0; font-size: 14px; color: #7dd3fc; font-weight: 500; letter-spacing: 1px; text-transform: uppercase;">
+                            Time Entries Incident Report
+                        </p>
+                        
+                        <!-- Línea decorativa inferior (ancho fijo) -->
+                        <div style="width: 40px; height: 3px; background-color: #7dd3fc; margin: 15px auto 0 auto; border-radius: 2px;"></div>
+                    </div>
                     
-                    <!-- Subtítulo estilizado con separadores -->
-                    <p style="margin: 10px 0 0 0; font-size: 14px; color: #7dd3fc; font-weight: 500; letter-spacing: 1px; text-transform: uppercase;">
-                        Time Entries Incident Report
-                    </p>
-                    
-                    <!-- Línea decorativa inferior -->
-                    <div style="width: 40px; height: 3px; background-color: #7dd3fc; margin: 15px auto 0 auto; border-radius: 2px;"></div>
                 </td>
             </tr>
         </table>
