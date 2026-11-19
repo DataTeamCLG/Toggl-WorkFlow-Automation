@@ -509,45 +509,56 @@ def enviar_correo(smtp_server, smtp_port, smtp_username, smtp_password,
 # PROCESAMIENTO PRINCIPAL
 # ============================================================
 
-def cargar_hojas(uploaded_file):
+def cargar_hojas(uploaded_file, tipo_reporte):
     xls = pd.ExcelFile(uploaded_file, engine='openpyxl')
     hojas = {re.sub(r'\s+', '', h).lower(): h for h in xls.sheet_names}
 
-    # Detectar el tipo de archivo según la hoja de incidencias
-    tipo = None
-    hoja_inc = None
-    
-    if re.sub(r'\s+', '', "TogglFilterDB").lower() in hojas:
-        tipo = "nuevas"
-        hoja_inc = hojas[re.sub(r'\s+', '', "TogglFilterDB").lower()]
-    elif re.sub(r'\s+', '', "FilterDataBaseToggl").lower() in hojas:
-        tipo = "pendientes"
-        hoja_inc = hojas[re.sub(r'\s+', '', "FilterDataBaseToggl").lower()]
+    if tipo_reporte == "nuevas":
+        nombre_inc = "TogglFilterDB"
+        nombre_names = "Names"
     else:
-        raise ValueError("No se encontró la hoja 'TogglFilterDB' ni 'FilterDataBaseToggl'.")
+        nombre_inc = "FilterDataBaseToggl"
+        nombre_names = "EmailToggl"
 
-    # Para el archivo de pendientes, la hoja de usuarios se llama 'EmailToggl'
-    hoja_names = None
-    if "Names" in hojas:
-        hoja_names = hojas["Names"]
-    elif "EmailToggl" in hojas:
-        hoja_names = hojas["EmailToggl"]
-    else:
-        # En el nuevo archivo, la hoja 1 es EmailToggl. 
-        # Tomamos la primera hoja disponible como fallback
-        hoja_names = xls.sheet_names[0]
+    hoja_inc = hojas.get(re.sub(r'\s+', '', nombre_inc).lower())
+    hoja_names = hojas.get(re.sub(r'\s+', '', nombre_names).lower())
 
-    df_names = pd.read_excel(xls, sheet_name=hoja_names)
+    if not hoja_inc:
+        raise ValueError(f"No se encontró la hoja '{nombre_inc}'. Hojas disponibles: {xls.sheet_names}")
     
-    # En el archivo de pendientes (EmailToggl), los datos de usuarios empiezan en la fila 4
-    if "EmailToggl" in hoja_names:
-        df_names = df_names.iloc[3:].copy()
-        df_names.columns = df_names.iloc[0]
-        df_names = df_names[1:]
-        df_names = df_names.reset_index(drop=True)
+    # Si no encuentra la hoja de nombres exacta, intenta con la otra o usa la primera
+    if not hoja_names:
+        if "names" in hojas:
+            hoja_names = hojas["names"]
+        elif "emailtoggl" in hojas:
+            hoja_names = hojas["emailtoggl"]
+        else:
+            hoja_names = xls.sheet_names[0]
 
+    # Leer Incidencias
     df_inc = pd.read_excel(xls, sheet_name=hoja_inc)
-    return df_names, df_inc, tipo
+
+    # Leer Usuarios (Lógica especial para EmailToggl)
+    if "EmailToggl" in hoja_names:
+        # Leer sin encabezados para poder saltar las filas de arriba
+        df_names_raw = pd.read_excel(xls, sheet_name=hoja_names, header=None)
+        # Buscar la fila que dice "NAME CORRECT"
+        header_row = None
+        for i, row in df_names_raw.iterrows():
+            if "NAME CORRECT" in [str(x).strip().upper() for x in row.values]:
+                header_row = i
+                break
+        
+        if header_row is not None:
+            df_names = pd.read_excel(xls, sheet_name=hoja_names, header=header_row)
+        else:
+            df_names = df_names_raw.copy()
+            df_names.columns = df_names.iloc[0]
+            df_names = df_names[1:]
+    else:
+        df_names = pd.read_excel(xls, sheet_name=hoja_names)
+
+    return df_names, df_inc
 
 
 def construir_mapa_usuarios(df_names):
@@ -557,9 +568,9 @@ def construir_mapa_usuarios(df_names):
         if pd.isna(nombre):
             continue
         
-        # En el nuevo archivo no hay USER STATUS, se asume que si está en la lista es activo
+        # Algunos archivos no tienen status (el de correcciones)
         status = str(row.get('USER STATUS', '')).strip().lower()
-        if 'status' in df_names.columns and status != 'active':
+        if 'USER STATUS' in df_names.columns and status != 'active':
             continue
             
         email = row.get('EMAIL')
@@ -584,14 +595,13 @@ def procesar_y_enviar(df_names, df_inc, tipo, smtp_server, smtp_port, smtp_usern
     mapa_usuarios = construir_mapa_usuarios(df_names)
 
     if 'Member' not in df_inc.columns:
-        return False, f"Sheet has no 'Member' column. Columns: {list(df_inc.columns)}", []
+        return False, f"La hoja de datos no tiene la columna 'Member'. Columnas actuales: {list(df_inc.columns)}", []
 
     logo_bytes, logo_mime = get_logo_bytes()
     logo_cid = "company_logo_cid" if logo_bytes else None
 
     df_inc = df_inc.copy()
-    # En el archivo de pendientes la columna es 'Member' directo (y ya trae el nombre correcto usualmente)
-    # En el archivo de nuevas es 'Corrected Name' con fallback a 'Member'
+    # Priorizar 'Corrected Name' si existe, si no, usar 'Member'
     if 'Corrected Name' in df_inc.columns:
         df_inc['_match_name'] = df_inc['Corrected Name'].where(
             df_inc['Corrected Name'].notna() & (df_inc['Corrected Name'].astype(str).str.strip() != ''),
@@ -612,7 +622,7 @@ def procesar_y_enviar(df_names, df_inc, tipo, smtp_server, smtp_port, smtp_usern
             nombre_original = df_usuario['_match_name'].iloc[0]
             resultados.append({
                 'usuario': f"{nombre_original} (key: {member_key})",
-                'estado': '⚠️ Not found in Names/Email list',
+                'estado': '⚠️ No encontrado en la lista de usuarios',
                 'incidencias': len(df_usuario),
                 'to': '-',
                 'cc': '-'
@@ -629,7 +639,7 @@ def procesar_y_enviar(df_names, df_inc, tipo, smtp_server, smtp_port, smtp_usern
         if not to_emails:
             resultados.append({
                 'usuario': info['nombre'],
-                'estado': '⚠️ No recipient',
+                'estado': '⚠️ Sin destinatario',
                 'incidencias': len(df_usuario),
                 'to': '-',
                 'cc': '-'
@@ -676,7 +686,7 @@ def procesar_y_enviar(df_names, df_inc, tipo, smtp_server, smtp_port, smtp_usern
                                 to_emails, cc_emails, asunto, html, logo_bytes)
         resultados.append({
             'usuario': info['nombre'],
-            'estado': '✅ Sent' if ok else f'❌ {err[:80]}',
+            'estado': '✅ Enviado' if ok else f'❌ {err[:80]}',
             'incidencias': len(df_usuario),
             'to': ', '.join(to_emails),
             'cc': ', '.join(cc_emails) if cc_emails else '-'
@@ -690,9 +700,9 @@ def procesar_y_enviar(df_names, df_inc, tipo, smtp_server, smtp_port, smtp_usern
     errores = len(resultados) - enviados - simulados - advertencias
 
     if dry_run:
-        msg = f"🧪 Simulation: {simulados} emails would be sent | {advertencias} warnings | {errores} errors."
+        msg = f"🧪 Simulación: {simulados} correos se enviarían | {advertencias} advertencias | {errores} errores."
     else:
-        msg = f"✅ {enviados} sent | ⚠️ {advertencias} warnings | ❌ {errores} errors."
+        msg = f"✅ {enviados} enviados | ⚠️ {advertencias} advertencias | ❌ {errores} errores."
 
     return True, msg, resultados
 
@@ -714,6 +724,14 @@ else:
     """, unsafe_allow_html=True)
 
 with st.sidebar:
+    st.markdown("### ⚙️ Configuration")
+    tipo_reporte = st.radio(
+        "Select the email type to send:",
+        ("New Incidents (Alert)", "Pending Corrections (Follow-up)")
+    )
+    tipo = "nuevas" if tipo_reporte == "New Incidents (Alert)" else "pendientes"
+
+    st.markdown("---")
     st.markdown("### 📁 Data File")
     uploaded_file = st.file_uploader(
         "Upload the Excel file",
@@ -741,10 +759,9 @@ with st.sidebar:
 
 if uploaded_file is not None:
     try:
-        df_names, df_inc, tipo = cargar_hojas(uploaded_file)
+        df_names, df_inc = cargar_hojas(uploaded_file, tipo)
         
-        tipo_label = "New Incidents" if tipo == "nuevas" else "Pending Corrections"
-        st.markdown(f"### 📊 Data Summary ({tipo_label})")
+        st.markdown(f"### 📊 Data Summary ({tipo_reporte})")
         
         c1, c2, c3, c4 = st.columns(4)
         c1.metric("Users in System", len(df_names))
@@ -753,7 +770,9 @@ if uploaded_file is not None:
         c4.metric("Today", obtener_hora_local().strftime('%m/%d/%Y'))
 
         with st.expander("👁️ Preview — Users"):
-            cols_prev = [c for c in ['NAME CORRECT', 'PREFIX', 'EMAIL'] if c in df_names.columns]
+            cols_prev = [c for c in ['NAME CORRECT', 'PREFIX', 'EMAIL', 'COPY EMAIL'] if c in df_names.columns]
+            if not cols_prev:
+                cols_prev = [c for c in ['NAME CORRECT', 'PREFIX', 'EMAIL', 'COPY_EMAIL_TG'] if c in df_names.columns]
             st.dataframe(df_names[cols_prev].head(20), use_container_width=True)
 
         with st.expander("👁️ Preview — Records to Process"):
@@ -761,16 +780,16 @@ if uploaded_file is not None:
 
         faltantes = [c for c in ['Member', 'Date', 'Duration'] if c not in df_inc.columns]
         if faltantes:
-            st.warning(f"⚠️ Missing columns in data sheet: {faltantes}. "
-                       f"Current columns: {list(df_inc.columns)}")
+            st.warning(f"⚠️ Faltan columnas en la hoja de datos: {faltantes}. "
+                       f"Columnas actuales: {list(df_inc.columns)}")
 
         if btn_simular or btn_enviar:
             if not SMTP_SERVER or not SMTP_PORT or not SMTP_USERNAME or not SMTP_PASSWORD:
-                st.error("⚠️ No SMTP credentials found. Please configure them in Streamlit Secrets.")
+                st.error("⚠️ No se encontraron credenciales SMTP. Por favor configúralas en los Secrets de Streamlit.")
             else:
                 if btn_enviar and not test_mode:
-                    st.warning("🔴 REAL send enabled: emails will go to users and their CC.")
-                with st.spinner("Processing..."):
+                    st.warning("🔴 Envío REAL habilitado: los correos irán a los usuarios y sus CC.")
+                with st.spinner("Procesando..."):
                     ok, msg, resultados = procesar_y_enviar(
                         df_names, df_inc, tipo,
                         SMTP_SERVER, SMTP_PORT, SMTP_USERNAME, SMTP_PASSWORD,
