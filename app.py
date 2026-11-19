@@ -358,6 +358,8 @@ def generar_html_pendientes(usuario_info, df_usuario, logo_cid=None):
         cliente = row.get('Client Tag', '')
         descripcion = row.get('Description', '')
         duracion = formatear_duracion(row.get('Duration', ''))
+        tipo = row.get('Type of incident', row.get('Type of Incident', ''))
+        obs = row.get('Observations', '')
         
         bg_color = "#ffffff" if idx % 2 == 0 else "#f8fafc"
         
@@ -370,6 +372,8 @@ def generar_html_pendientes(usuario_info, df_usuario, logo_cid=None):
             </td>
             <td style="padding: 12px 15px; color: #334155; font-size: 14px;">{descripcion}</td>
             <td style="padding: 12px 15px; color: #012338; font-size: 14px; font-weight: 700; white-space: nowrap;">{duracion}</td>
+            <td style="padding: 12px 15px; color: #b91c1c; font-size: 14px; font-weight: 700;">{tipo}</td>
+            <td style="padding: 12px 15px; color: #0f172a; font-size: 13px; font-weight: 700; font-style: italic;">{obs}</td>
         </tr>
         """
 
@@ -431,6 +435,8 @@ def generar_html_pendientes(usuario_info, df_usuario, logo_cid=None):
                                 <th style="background-color: #012338; color: #ffffff; font-weight: 700; padding: 14px 15px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; text-align: left; border: none;">Client Tag</th>
                                 <th style="background-color: #012338; color: #ffffff; font-weight: 700; padding: 14px 15px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; text-align: left; border: none;">Description</th>
                                 <th style="background-color: #012338; color: #ffffff; font-weight: 700; padding: 14px 15px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; text-align: left; border: none;">Duration</th>
+                                <th style="background-color: #012338; color: #ffffff; font-weight: 700; padding: 14px 15px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; text-align: left; border: none;">Type of Incident</th>
+                                <th style="background-color: #012338; color: #ffffff; font-weight: 700; padding: 14px 15px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; text-align: left; border: none;">Observations</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -439,6 +445,7 @@ def generar_html_pendientes(usuario_info, df_usuario, logo_cid=None):
                     </table>
 
                     <div style="background-color: #eff6ff; border: 1px solid #bfdbfe; padding: 20px; border-radius: 6px; margin-top: 30px;">
+                        <strong style="color: #012338; font-size: 15px; display: block; margin-bottom: 10px; text-transform: uppercase;">Action Required:</strong>
                         <span style="font-size: 14px; color: #1e3a8a;">
                             Thank you for your prompt attention to this matter.
                         </span>
@@ -619,194 +626,4 @@ def procesar_y_enviar(df_names, df_inc, tipo, smtp_server, smtp_port, smtp_usern
         info = mapa_usuarios.get(member_key)
 
         if info is None:
-            nombre_original = df_usuario['_match_name'].iloc[0]
-            resultados.append({
-                'usuario': f"{nombre_original} (key: {member_key})",
-                'estado': '⚠️ No encontrado en la lista de usuarios',
-                'incidencias': len(df_usuario),
-                'to': '-',
-                'cc': '-'
-            })
-            continue
-
-        if test_mode:
-            to_emails = [smtp_username] if smtp_username else []
-            cc_emails = []
-        else:
-            to_emails = [info['email']]
-            cc_emails = info['cc']
-
-        if not to_emails:
-            resultados.append({
-                'usuario': info['nombre'],
-                'estado': '⚠️ Sin destinatario',
-                'incidencias': len(df_usuario),
-                'to': '-',
-                'cc': '-'
-            })
-            continue
-
-        # Calcular fechas mínima y máxima para el asunto
-        try:
-            fechas_validas = pd.to_datetime(df_usuario['Date'], errors='coerce').dropna()
-            if not fechas_validas.empty:
-                min_date = fechas_validas.min().strftime('%m/%d/%Y')
-                max_date = fechas_validas.max().strftime('%m/%d/%Y')
-                if min_date == max_date:
-                    date_str = min_date
-                else:
-                    date_str = f"{min_date} - {max_date}"
-            else:
-                date_str = ""
-        except Exception:
-            date_str = ""
-
-        # Generar asunto y HTML según el tipo de reporte
-        if tipo == "nuevas":
-            asunto = f"Toggl Compliance Alert — {info['nombre']} — {date_str}"
-            html = generar_html_nuevas_incidencias(info, df_usuario, logo_cid)
-        else:
-            asunto = f"Pending Toggl Corrections — {info['nombre']} — {date_str}"
-            html = generar_html_pendientes(info, df_usuario, logo_cid)
-            
-        if test_mode:
-            asunto = f"[TEST] {asunto}"
-
-        if dry_run:
-            resultados.append({
-                'usuario': info['nombre'],
-                'estado': '🧪 Simulated',
-                'incidencias': len(df_usuario),
-                'to': ', '.join(to_emails),
-                'cc': ', '.join(cc_emails) if cc_emails else '-'
-            })
-            continue
-
-        ok, err = enviar_correo(smtp_server, smtp_port, smtp_username, smtp_password,
-                                to_emails, cc_emails, asunto, html, logo_bytes)
-        resultados.append({
-            'usuario': info['nombre'],
-            'estado': '✅ Enviado' if ok else f'❌ {err[:80]}',
-            'incidencias': len(df_usuario),
-            'to': ', '.join(to_emails),
-            'cc': ', '.join(cc_emails) if cc_emails else '-'
-        })
-        
-        time.sleep(0.5)
-
-    enviados = sum(1 for r in resultados if r['estado'].startswith('✅'))
-    simulados = sum(1 for r in resultados if r['estado'].startswith('🧪'))
-    advertencias = sum(1 for r in resultados if r['estado'].startswith('⚠️'))
-    errores = len(resultados) - enviados - simulados - advertencias
-
-    if dry_run:
-        msg = f"🧪 Simulación: {simulados} correos se enviarían | {advertencias} advertencias | {errores} errores."
-    else:
-        msg = f"✅ {enviados} enviados | ⚠️ {advertencias} advertencias | ❌ {errores} errores."
-
-    return True, msg, resultados
-
-# ============================================================
-# INTERFAZ STREAMLIT
-# ============================================================
-
-banner = get_banner_base64()
-if banner:
-    st.image(banner, use_container_width=True)
-else:
-    st.markdown("""
-    <div style="background: linear-gradient(135deg, #1a3a5c, #4a7c9c);
-        padding: 20px 30px; border-radius: 10px; margin-bottom: 20px;">
-        <h1 style="color: white; margin: 0; font-size: 24px;">💠 Toggl Time Entry Compliance System</h1>
-        <p style="color: rgba(255,255,255,0.9); margin: 4px 0 0 0;">
-            Incident detection and pending corrections</p>
-    </div>
-    """, unsafe_allow_html=True)
-
-with st.sidebar:
-    st.markdown("### ⚙️ Configuration")
-    tipo_reporte = st.radio(
-        "Select the email type to send:",
-        ("New Incidents (Alert)", "Pending Corrections (Follow-up)")
-    )
-    tipo = "nuevas" if tipo_reporte == "New Incidents (Alert)" else "pendientes"
-
-    st.markdown("---")
-    st.markdown("### 📁 Data File")
-    uploaded_file = st.file_uploader(
-        "Upload the Excel file",
-        type=['xlsx', 'xls']
-    )
-
-    st.markdown("---")
-    st.markdown("### 🧪 Test Mode")
-    test_mode = st.checkbox("Test mode (send everything to my email)", value=True)
-
-    st.markdown("---")
-    col1, col2 = st.columns(2)
-    with col1:
-        btn_simular = st.button("📄 Simulate", use_container_width=True)
-    with col2:
-        btn_enviar = st.button("📨 Send", type="primary", use_container_width=True)
-
-    st.caption("🔒 Secure TLS · No storage")
-
-    # Validación visual de credenciales cargadas
-    if SMTP_SERVER and SMTP_PORT and SMTP_USERNAME and SMTP_PASSWORD:
-        st.success("✅ SMTP credentials loaded securely")
-    else:
-        st.error(f"⚠️ SMTP credentials not found. {SMTP_ERROR if SMTP_ERROR else 'Please check your Streamlit Secrets.'}")
-
-if uploaded_file is not None:
-    try:
-        df_names, df_inc = cargar_hojas(uploaded_file, tipo)
-        
-        st.markdown(f"### 📊 Data Summary ({tipo_reporte})")
-        
-        c1, c2, c3, c4 = st.columns(4)
-        c1.metric("Users in System", len(df_names))
-        c2.metric("Records to Process", len(df_inc))
-        c3.metric("Users with records", df_inc['Member'].nunique() if 'Member' in df_inc.columns else 0)
-        c4.metric("Today", obtener_hora_local().strftime('%m/%d/%Y'))
-
-        with st.expander("👁️ Preview — Users"):
-            cols_prev = [c for c in ['NAME CORRECT', 'PREFIX', 'EMAIL', 'COPY EMAIL'] if c in df_names.columns]
-            if not cols_prev:
-                cols_prev = [c for c in ['NAME CORRECT', 'PREFIX', 'EMAIL', 'COPY_EMAIL_TG'] if c in df_names.columns]
-            st.dataframe(df_names[cols_prev].head(20), use_container_width=True)
-
-        with st.expander("👁️ Preview — Records to Process"):
-            st.dataframe(df_inc.head(20), use_container_width=True)
-
-        faltantes = [c for c in ['Member', 'Date', 'Duration'] if c not in df_inc.columns]
-        if faltantes:
-            st.warning(f"⚠️ Faltan columnas en la hoja de datos: {faltantes}. "
-                       f"Columnas actuales: {list(df_inc.columns)}")
-
-        if btn_simular or btn_enviar:
-            if not SMTP_SERVER or not SMTP_PORT or not SMTP_USERNAME or not SMTP_PASSWORD:
-                st.error("⚠️ No se encontraron credenciales SMTP. Por favor configúralas en los Secrets de Streamlit.")
-            else:
-                if btn_enviar and not test_mode:
-                    st.warning("🔴 Envío REAL habilitado: los correos irán a los usuarios y sus CC.")
-                with st.spinner("Procesando..."):
-                    ok, msg, resultados = procesar_y_enviar(
-                        df_names, df_inc, tipo,
-                        SMTP_SERVER, SMTP_PORT, SMTP_USERNAME, SMTP_PASSWORD,
-                        test_mode=test_mode,
-                        dry_run=btn_simular
-                    )
-                st.markdown("### 📋 Results")
-                if ok:
-                    st.success(msg)
-                else:
-                    st.error(msg)
-
-                if resultados:
-                    st.dataframe(pd.DataFrame(resultados), use_container_width=True)
-
-    except Exception as e:
-        st.error(f"❌ Error: {e}")
-        st.code(traceback.format_exc())
-else:
-    st.info("📌 Upload the Excel file in the sidebar to begin.")
+            nombre_original = df_usuario['_match_name
