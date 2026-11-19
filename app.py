@@ -58,7 +58,7 @@ SITIO_WEB = "www.communitylawgroup.com"
 
 TAMANO_LOGO = 120
 LOGO_WIDTH = 120
-LOGO_MAX_BYTES = 8000  # 8 KB: Tamaño ultra-ligero a prueba de Outlook
+LOGO_MAX_BYTES = 8000
 
 ZONA_HORARIA = pytz.timezone('America/Bogota')
 
@@ -264,32 +264,23 @@ def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None):
     </head>
     <body style="margin: 0; padding: 0; background-color: #ffffff; font-family: 'Segoe UI', 'Calibri', Arial, sans-serif; line-height: 1.6; color: #1e293b;">
         
-        <!-- Banner con diseño corporativo -->
+        <!-- Banner Premium Minimalista -->
         <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #012338;">
             <tr>
-                <!-- Línea decorativa izquierda -->
-                <td width="15%" align="right" style="padding: 0;">
-                    <div style="width: 2px; height: 80px; background-color: #7dd3fc; float: right; opacity: 0.5;"></div>
-                </td>
-                
-                <!-- Contenido central -->
-                <td width="70%" align="center" style="padding: 25px 20px;">
-                    <h1 style="margin: 0; font-size: 26px; font-weight: 700; color: #ffffff; letter-spacing: 0.5px;">
-                        <span style="font-size: 22px; vertical-align: middle; margin-right: 8px;">💠</span>
+                <td align="center" style="padding: 40px 20px;">
+                    
+                    <h1 style="margin: 0; font-size: 28px; font-weight: 700; color: #ffffff; letter-spacing: 1px;">
+                        <span style="font-size: 24px; vertical-align: text-bottom; margin-right: 12px; color: #7dd3fc;">💠</span>
                         Toggl Time Entry Compliance System
                     </h1>
                     
-                    <p style="margin: 10px 0 0 0; font-size: 14px; color: #7dd3fc; font-weight: 500; letter-spacing: 1px; text-transform: uppercase;">
+                    <p style="margin: 12px 0 0 0; font-size: 13px; color: #7dd3fc; font-weight: 600; letter-spacing: 2px; text-transform: uppercase;">
                         Time Entries Incident Report
                     </p>
                     
-                    <!-- Línea decorativa inferior (se mantiene) -->
-                    <div style="width: 40px; height: 3px; background-color: #7dd3fc; margin: 15px auto 0 auto; border-radius: 2px;"></div>
-                </td>
-                
-                <!-- Línea decorativa derecha -->
-                <td width="15%" align="left" style="padding: 0;">
-                    <div style="width: 2px; height: 80px; background-color: #7dd3fc; float: left; opacity: 0.5;"></div>
+                    <!-- Línea inferior (la que te gusta) -->
+                    <div style="width: 60px; height: 3px; background-color: #7dd3fc; margin: 20px auto 0 auto; border-radius: 3px;"></div>
+                    
                 </td>
             </tr>
         </table>
