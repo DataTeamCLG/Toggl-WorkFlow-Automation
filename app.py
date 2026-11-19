@@ -267,19 +267,19 @@ def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None):
         <!-- Banner Premium Minimalista -->
         <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #012338;">
             <tr>
-                <td align="center" style="padding: 40px 20px;">
+                <td align="center" style="padding: 20px 15px;">
                     
-                    <h1 style="margin: 0; font-size: 28px; font-weight: 700; color: #ffffff; letter-spacing: 1px;">
-                        <span style="font-size: 24px; vertical-align: text-bottom; margin-right: 12px; color: #7dd3fc;">💠</span>
+                    <h1 style="margin: 0; font-size: 24px; font-weight: 700; color: #ffffff; letter-spacing: 0.5px;">
+                        <span style="font-size: 20px; vertical-align: middle; margin-right: 10px; color: #7dd3fc;">💠</span>
                         Toggl Time Entry Compliance System
                     </h1>
                     
-                    <p style="margin: 12px 0 0 0; font-size: 13px; color: #7dd3fc; font-weight: 600; letter-spacing: 2px; text-transform: uppercase;">
+                    <p style="margin: 6px 0 0 0; font-size: 12px; color: #7dd3fc; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase;">
                         Time Entries Incident Report
                     </p>
                     
-                    <!-- Línea inferior (la que te gusta) -->
-                    <div style="width: 60px; height: 3px; background-color: #7dd3fc; margin: 20px auto 0 auto; border-radius: 3px;"></div>
+                    <!-- Línea inferior -->
+                    <div style="width: 50px; height: 2px; background-color: #7dd3fc; margin: 12px auto 0 auto; border-radius: 2px;"></div>
                     
                 </td>
             </tr>
