@@ -264,12 +264,12 @@ def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None):
     </head>
     <body style="margin: 0; padding: 0; background-color: #ffffff; font-family: 'Segoe UI', 'Calibri', Arial, sans-serif; line-height: 1.6; color: #1e293b;">
         
-        <!-- Banner con diseño corporativo y bordes laterales -->
+        <!-- Banner con diseño corporativo -->
         <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #012338;">
             <tr>
-                <!-- Elemento decorativo izquierdo (diagonal) -->
+                <!-- Línea decorativa izquierda -->
                 <td width="15%" align="right" style="padding: 0;">
-                    <div style="width: 0; height: 0; border-top: 90px solid transparent; border-left: 40px solid #032C46; border-bottom: 90px solid transparent; float: right;"></div>
+                    <div style="width: 2px; height: 80px; background-color: #7dd3fc; float: right; opacity: 0.5;"></div>
                 </td>
                 
                 <!-- Contenido central -->
@@ -287,9 +287,9 @@ def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None):
                     <div style="width: 40px; height: 3px; background-color: #7dd3fc; margin: 15px auto 0 auto; border-radius: 2px;"></div>
                 </td>
                 
-                <!-- Elemento decorativo derecho (diagonal) -->
+                <!-- Línea decorativa derecha -->
                 <td width="15%" align="left" style="padding: 0;">
-                    <div style="width: 0; height: 0; border-top: 90px solid transparent; border-right: 40px solid #032C46; border-bottom: 90px solid transparent; float: left;"></div>
+                    <div style="width: 2px; height: 80px; background-color: #7dd3fc; float: left; opacity: 0.5;"></div>
                 </td>
             </tr>
         </table>
