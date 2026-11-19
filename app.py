@@ -62,9 +62,6 @@ LOGO_MAX_BYTES = 8000
 
 ZONA_HORARIA = pytz.timezone('America/Bogota')
 
-HOJA_NAMES = "Names"
-HOJA_INCIDENTES = "TogglFilterDB"
-
 # ============================================================
 # RECURSOS (LOGO / BANNER)
 # ============================================================
@@ -213,10 +210,10 @@ def formatear_fecha(valor):
         return str(valor)
 
 # ============================================================
-# HTML DEL CORREO
+# HTML DEL CORREO (DOS MODOS)
 # ============================================================
 
-def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None):
+def generar_html_nuevas_incidencias(usuario_info, df_usuario, logo_cid=None):
     saludo = obtener_saludo_en()
     prefix = usuario_info.get('prefix', '')
     nombre = usuario_info.get('nombre', '')
@@ -264,7 +261,6 @@ def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None):
     </head>
     <body style="margin: 0; padding: 0; background-color: #ffffff; font-family: 'Segoe UI', 'Calibri', Arial, sans-serif; line-height: 1.6; color: #1e293b;">
         
-        <!-- Banner Premium Minimalista -->
         <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #012338;">
             <tr>
                 <td align="center" style="padding: 20px 15px;">
@@ -275,10 +271,9 @@ def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None):
                     </h1>
                     
                     <p style="margin: 6px 0 0 0; font-size: 12px; color: #7dd3fc; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase;">
-                        Time Entries Incident Report
+                        New Incidents Detected
                     </p>
                     
-                    <!-- Línea inferior -->
                     <div style="width: 50px; height: 2px; background-color: #7dd3fc; margin: 12px auto 0 auto; border-radius: 2px;"></div>
                     
                 </td>
@@ -325,6 +320,127 @@ def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None):
                             We expect team members to correct their time entries, activities, and activity descriptions within a maximum period of 24 hours.<br><br>
                             Should you have any questions regarding this report, please contact the Quality Control & Efficiency Department.<br>
                             Thank you for your attention and cooperation.
+                        </span>
+                    </div>
+
+                    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin-top: 40px;">
+                        <tr>
+                            <td align="center" style="padding-top: 25px; border-top: 2px solid #e2e8f0; text-align: center;">
+                                {logo_html}
+                                <strong style="color: #012338; font-size: 16px; display: block; margin-bottom: 4px;">{NOMBRE_EMPRESA}</strong>
+                                <span style="color: #0284c7; font-size: 14px; font-weight: 600; display: block; margin-bottom: 8px;">{DEPARTAMENTO}</span>
+                                <span style="color: #64748b; font-size: 13px; display: inline-block;">
+                                    ✉️ <a href="mailto:{EMAIL_CONTACTO}" style="color: #0284c7; text-decoration: none;">{EMAIL_CONTACTO}</a> &nbsp;|&nbsp; 🌐 <a href="https://{SITIO_WEB}" style="color: #0284c7; text-decoration: none;">{SITIO_WEB}</a>
+                                </span>
+                            </td>
+                        </tr>
+                    </table>
+
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+    """
+    return html
+
+
+def generar_html_pendientes(usuario_info, df_usuario, logo_cid=None):
+    saludo = obtener_saludo_en()
+    prefix = usuario_info.get('prefix', '')
+    nombre = usuario_info.get('nombre', '')
+    saludo_completo = f"{saludo} {prefix} {nombre},".replace("  ", " ").strip()
+
+    filas = ""
+    for idx, (_, row) in enumerate(df_usuario.iterrows()):
+        fecha = formatear_fecha(row.get('Date', ''))
+        proyecto = row.get('Project (Activity)', '')
+        cliente = row.get('Client Tag', '')
+        descripcion = row.get('Description', '')
+        duracion = formatear_duracion(row.get('Duration', ''))
+        
+        bg_color = "#ffffff" if idx % 2 == 0 else "#f8fafc"
+        
+        filas += f"""
+        <tr style="background-color: {bg_color};">
+            <td style="padding: 12px 15px; color: #334155; font-size: 14px; font-weight: 700; white-space: nowrap;">{fecha}</td>
+            <td style="padding: 12px 15px; color: #334155; font-size: 14px;">{proyecto}</td>
+            <td style="padding: 12px 15px; font-size: 14px;">
+                <span style="background-color: #e0f2fe; color: #0369a1; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 700; white-space: nowrap;">{cliente}</span>
+            </td>
+            <td style="padding: 12px 15px; color: #334155; font-size: 14px;">{descripcion}</td>
+            <td style="padding: 12px 15px; color: #012338; font-size: 14px; font-weight: 700; white-space: nowrap;">{duracion}</td>
+        </tr>
+        """
+
+    logo_html = ""
+    if logo_cid:
+        logo_html = f"""
+        <img src="cid:{logo_cid}" alt="{NOMBRE_EMPRESA}" width="{TAMANO_LOGO}"
+             style="width: {TAMANO_LOGO}px; height: auto; border: none; display: block; margin: 0 auto 10px auto;">
+        """
+
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="margin: 0; padding: 0; background-color: #ffffff; font-family: 'Segoe UI', 'Calibri', Arial, sans-serif; line-height: 1.6; color: #1e293b;">
+        
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #012338;">
+            <tr>
+                <td align="center" style="padding: 20px 15px;">
+                    
+                    <h1 style="margin: 0; font-size: 24px; font-weight: 700; color: #ffffff; letter-spacing: 0.5px;">
+                        <span style="font-size: 20px; vertical-align: middle; margin-right: 10px; color: #7dd3fc;">💠</span>
+                        Toggl Time Entry Compliance System
+                    </h1>
+                    
+                    <p style="margin: 6px 0 0 0; font-size: 12px; color: #7dd3fc; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase;">
+                        Pending Time Entry Corrections
+                    </p>
+                    
+                    <div style="width: 50px; height: 2px; background-color: #7dd3fc; margin: 12px auto 0 auto; border-radius: 2px;"></div>
+                    
+                </td>
+            </tr>
+        </table>
+
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #ffffff;">
+            <tr>
+                <td style="padding: 30px 20px;">
+                    
+                    <div style="background-color: #f0f9ff; padding: 15px 20px; border-radius: 6px; margin-bottom: 25px;">
+                        <strong style="font-size: 18px; color: #012338;">{saludo_completo}</strong>
+                    </div>
+
+                    <p style="font-size: 15px; color: #334155; margin-bottom: 15px;">
+                        Please find below the report of time entries that have not yet been corrected. If you have any questions or need further clarification, please feel free to let me know.
+                    </p>
+                    <p style="font-size: 15px; color: #334155; margin-bottom: 25px;">
+                        The following <strong style="color: #ef4444; font-size: 16px;">{len(df_usuario)}</strong> correction(s) remain pending:
+                    </p>
+
+                    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="width: 100%; border-collapse: collapse; text-align: left; margin: 20px 0;">
+                        <thead>
+                            <tr style="background-color: #012338;">
+                                <th style="background-color: #012338; color: #ffffff; font-weight: 700; padding: 14px 15px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; text-align: left; border: none;">Date</th>
+                                <th style="background-color: #012338; color: #ffffff; font-weight: 700; padding: 14px 15px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; text-align: left; border: none;">Project (Activity)</th>
+                                <th style="background-color: #012338; color: #ffffff; font-weight: 700; padding: 14px 15px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; text-align: left; border: none;">Client Tag</th>
+                                <th style="background-color: #012338; color: #ffffff; font-weight: 700; padding: 14px 15px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; text-align: left; border: none;">Description</th>
+                                <th style="background-color: #012338; color: #ffffff; font-weight: 700; padding: 14px 15px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; text-align: left; border: none;">Duration</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {filas}
+                        </tbody>
+                    </table>
+
+                    <div style="background-color: #eff6ff; border: 1px solid #bfdbfe; padding: 20px; border-radius: 6px; margin-top: 30px;">
+                        <span style="font-size: 14px; color: #1e3a8a;">
+                            Thank you for your prompt attention to this matter.
                         </span>
                     </div>
 
@@ -397,14 +513,41 @@ def cargar_hojas(uploaded_file):
     xls = pd.ExcelFile(uploaded_file, engine='openpyxl')
     hojas = {re.sub(r'\s+', '', h).lower(): h for h in xls.sheet_names}
 
-    if re.sub(r'\s+', '', HOJA_NAMES).lower() not in hojas:
-        raise ValueError(f"Sheet '{HOJA_NAMES}' not found. Available: {xls.sheet_names}")
-    if re.sub(r'\s+', '', HOJA_INCIDENTES).lower() not in hojas:
-        raise ValueError(f"Sheet '{HOJA_INCIDENTES}' not found. Available: {xls.sheet_names}")
+    # Detectar el tipo de archivo según la hoja de incidencias
+    tipo = None
+    hoja_inc = None
+    
+    if re.sub(r'\s+', '', "TogglFilterDB").lower() in hojas:
+        tipo = "nuevas"
+        hoja_inc = hojas[re.sub(r'\s+', '', "TogglFilterDB").lower()]
+    elif re.sub(r'\s+', '', "FilterDataBaseToggl").lower() in hojas:
+        tipo = "pendientes"
+        hoja_inc = hojas[re.sub(r'\s+', '', "FilterDataBaseToggl").lower()]
+    else:
+        raise ValueError("No se encontró la hoja 'TogglFilterDB' ni 'FilterDataBaseToggl'.")
 
-    df_names = pd.read_excel(xls, sheet_name=hojas[re.sub(r'\s+', '', HOJA_NAMES).lower()])
-    df_inc = pd.read_excel(xls, sheet_name=hojas[re.sub(r'\s+', '', HOJA_INCIDENTES).lower()])
-    return df_names, df_inc
+    # Para el archivo de pendientes, la hoja de usuarios se llama 'EmailToggl'
+    hoja_names = None
+    if "Names" in hojas:
+        hoja_names = hojas["Names"]
+    elif "EmailToggl" in hojas:
+        hoja_names = hojas["EmailToggl"]
+    else:
+        # En el nuevo archivo, la hoja 1 es EmailToggl. 
+        # Tomamos la primera hoja disponible como fallback
+        hoja_names = xls.sheet_names[0]
+
+    df_names = pd.read_excel(xls, sheet_name=hoja_names)
+    
+    # En el archivo de pendientes (EmailToggl), los datos de usuarios empiezan en la fila 4
+    if "EmailToggl" in hoja_names:
+        df_names = df_names.iloc[3:].copy()
+        df_names.columns = df_names.iloc[0]
+        df_names = df_names[1:]
+        df_names = df_names.reset_index(drop=True)
+
+    df_inc = pd.read_excel(xls, sheet_name=hoja_inc)
+    return df_names, df_inc, tipo
 
 
 def construir_mapa_usuarios(df_names):
@@ -413,14 +556,19 @@ def construir_mapa_usuarios(df_names):
         nombre = row.get('NAME CORRECT')
         if pd.isna(nombre):
             continue
+        
+        # En el nuevo archivo no hay USER STATUS, se asume que si está en la lista es activo
         status = str(row.get('USER STATUS', '')).strip().lower()
-        if status != 'active':
+        if 'status' in df_names.columns and status != 'active':
             continue
+            
         email = row.get('EMAIL')
         if pd.isna(email) or str(email).strip().lower() in ('disabled', ''):
             continue
+            
         key = normalizar_nombre(nombre)
-        cc = limpiar_emails(row.get('COPY_EMAIL_TG'))
+        cc = limpiar_emails(row.get('COPY EMAIL', row.get('COPY_EMAIL_TG')))
+        
         mapa[key] = {
             'nombre': str(nombre).strip(),
             'prefix': str(row.get('PREFIX', '')).strip() if not pd.isna(row.get('PREFIX')) else '',
@@ -430,18 +578,20 @@ def construir_mapa_usuarios(df_names):
     return mapa
 
 
-def procesar_y_enviar(df_names, df_inc, smtp_server, smtp_port, smtp_username, smtp_password,
+def procesar_y_enviar(df_names, df_inc, tipo, smtp_server, smtp_port, smtp_username, smtp_password,
                      test_mode=False, dry_run=False):
     resultados = []
     mapa_usuarios = construir_mapa_usuarios(df_names)
 
     if 'Member' not in df_inc.columns:
-        return False, f"Sheet '{HOJA_INCIDENTES}' has no 'Member' column. Columns: {list(df_inc.columns)}", []
+        return False, f"Sheet has no 'Member' column. Columns: {list(df_inc.columns)}", []
 
     logo_bytes, logo_mime = get_logo_bytes()
     logo_cid = "company_logo_cid" if logo_bytes else None
 
     df_inc = df_inc.copy()
+    # En el archivo de pendientes la columna es 'Member' directo (y ya trae el nombre correcto usualmente)
+    # En el archivo de nuevas es 'Corrected Name' con fallback a 'Member'
     if 'Corrected Name' in df_inc.columns:
         df_inc['_match_name'] = df_inc['Corrected Name'].where(
             df_inc['Corrected Name'].notna() & (df_inc['Corrected Name'].astype(str).str.strip() != ''),
@@ -462,7 +612,7 @@ def procesar_y_enviar(df_names, df_inc, smtp_server, smtp_port, smtp_username, s
             nombre_original = df_usuario['_match_name'].iloc[0]
             resultados.append({
                 'usuario': f"{nombre_original} (key: {member_key})",
-                'estado': '⚠️ Not found in Names or not Active',
+                'estado': '⚠️ Not found in Names/Email list',
                 'incidencias': len(df_usuario),
                 'to': '-',
                 'cc': '-'
@@ -501,15 +651,16 @@ def procesar_y_enviar(df_names, df_inc, smtp_server, smtp_port, smtp_username, s
         except Exception:
             date_str = ""
 
-        if date_str:
+        # Generar asunto y HTML según el tipo de reporte
+        if tipo == "nuevas":
             asunto = f"Toggl Compliance Alert — {info['nombre']} — {date_str}"
+            html = generar_html_nuevas_incidencias(info, df_usuario, logo_cid)
         else:
-            asunto = f"Toggl Compliance Alert — {info['nombre']}"
+            asunto = f"Pending Toggl Corrections — {info['nombre']} — {date_str}"
+            html = generar_html_pendientes(info, df_usuario, logo_cid)
             
         if test_mode:
             asunto = f"[TEST] {asunto}"
-
-        html = generar_html_incidencias(info, df_usuario, logo_cid)
 
         if dry_run:
             resultados.append({
@@ -558,14 +709,14 @@ else:
         padding: 20px 30px; border-radius: 10px; margin-bottom: 20px;">
         <h1 style="color: white; margin: 0; font-size: 24px;">💠 Toggl Time Entry Compliance System</h1>
         <p style="color: rgba(255,255,255,0.9); margin: 4px 0 0 0;">
-            Per-user incident detection and notification</p>
+            Incident detection and pending corrections</p>
     </div>
     """, unsafe_allow_html=True)
 
 with st.sidebar:
     st.markdown("### 📁 Data File")
     uploaded_file = st.file_uploader(
-        "Upload the Excel file (sheets: Names + TogglFilterDB)",
+        "Upload the Excel file",
         type=['xlsx', 'xls']
     )
 
@@ -590,29 +741,27 @@ with st.sidebar:
 
 if uploaded_file is not None:
     try:
-        df_names, df_inc = cargar_hojas(uploaded_file)
-
-        st.markdown("### 📊 Data Summary")
+        df_names, df_inc, tipo = cargar_hojas(uploaded_file)
+        
+        tipo_label = "New Incidents" if tipo == "nuevas" else "Pending Corrections"
+        st.markdown(f"### 📊 Data Summary ({tipo_label})")
+        
         c1, c2, c3, c4 = st.columns(4)
-        c1.metric("Users (Names)", len(df_names))
-        c2.metric("Incidents (TogglFilterDB)", len(df_inc))
-        c3.metric("Users with incidents", df_inc['Member'].nunique() if 'Member' in df_inc.columns else 0)
+        c1.metric("Users in System", len(df_names))
+        c2.metric("Records to Process", len(df_inc))
+        c3.metric("Users with records", df_inc['Member'].nunique() if 'Member' in df_inc.columns else 0)
         c4.metric("Today", obtener_hora_local().strftime('%m/%d/%Y'))
 
-        with st.expander("👁️ Preview — Names (Active)"):
-            if 'USER STATUS' in df_names.columns:
-                df_active = df_names[df_names['USER STATUS'].astype(str).str.strip().str.lower() == 'active']
-            else:
-                df_active = df_names
-            cols_prev = [c for c in ['NAME CORRECT', 'PREFIX', 'EMAIL', 'COPY_EMAIL_TG'] if c in df_active.columns]
-            st.dataframe(df_active[cols_prev].head(20), use_container_width=True)
+        with st.expander("👁️ Preview — Users"):
+            cols_prev = [c for c in ['NAME CORRECT', 'PREFIX', 'EMAIL'] if c in df_names.columns]
+            st.dataframe(df_names[cols_prev].head(20), use_container_width=True)
 
-        with st.expander("👁️ Preview — TogglFilterDB"):
+        with st.expander("👁️ Preview — Records to Process"):
             st.dataframe(df_inc.head(20), use_container_width=True)
 
-        faltantes = [c for c in ['Member', 'Date', 'Duration', 'Type of incident'] if c not in df_inc.columns]
+        faltantes = [c for c in ['Member', 'Date', 'Duration'] if c not in df_inc.columns]
         if faltantes:
-            st.warning(f"⚠️ Missing columns in TogglFilterDB: {faltantes}. "
+            st.warning(f"⚠️ Missing columns in data sheet: {faltantes}. "
                        f"Current columns: {list(df_inc.columns)}")
 
         if btn_simular or btn_enviar:
@@ -623,7 +772,7 @@ if uploaded_file is not None:
                     st.warning("🔴 REAL send enabled: emails will go to users and their CC.")
                 with st.spinner("Processing..."):
                     ok, msg, resultados = procesar_y_enviar(
-                        df_names, df_inc,
+                        df_names, df_inc, tipo,
                         SMTP_SERVER, SMTP_PORT, SMTP_USERNAME, SMTP_PASSWORD,
                         test_mode=test_mode,
                         dry_run=btn_simular
