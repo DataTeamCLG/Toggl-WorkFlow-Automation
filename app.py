@@ -20,8 +20,8 @@ import re
 # ============================================================
 
 st.set_page_config(
-    page_title="Toggl Time Entry Compliance System",
-    page_icon="⚠️",
+    page_title="Toggl Compliance System",
+    page_icon="💠",
     layout="wide"
 )
 
@@ -266,8 +266,21 @@ def generar_html_incidencias(usuario_info, df_usuario, logo_cid=None):
         <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #012338;">
             <tr>
                 <td align="center" style="padding: 30px 20px;">
-                    <h1 style="margin: 0; font-size: 26px; font-weight: 700; color: #ffffff; letter-spacing: 0.5px;">⚠️ Toggl Time Entry Compliance System</h1>
-                    <p style="margin: 8px 0 0 0; font-size: 15px; color: #7dd3fc; font-weight: 500;">Time Entries Incident Report</p>
+                    <!-- Línea decorativa superior -->
+                    <div style="width: 40px; height: 3px; background-color: #7dd3fc; margin: 0 auto 15px auto; border-radius: 2px;"></div>
+                    
+                    <h1 style="margin: 0; font-size: 26px; font-weight: 700; color: #ffffff; letter-spacing: 0.5px;">
+                        <span style="font-size: 22px; vertical-align: middle; margin-right: 8px;">💠</span>
+                        Toggl Time Entry Compliance System
+                    </h1>
+                    
+                    <!-- Subtítulo estilizado con separadores -->
+                    <p style="margin: 10px 0 0 0; font-size: 14px; color: #7dd3fc; font-weight: 500; letter-spacing: 1px; text-transform: uppercase;">
+                        Time Entries Incident Report
+                    </p>
+                    
+                    <!-- Línea decorativa inferior -->
+                    <div style="width: 40px; height: 3px; background-color: #7dd3fc; margin: 15px auto 0 auto; border-radius: 2px;"></div>
                 </td>
             </tr>
         </table>
@@ -543,7 +556,7 @@ else:
     st.markdown("""
     <div style="background: linear-gradient(135deg, #1a3a5c, #4a7c9c);
         padding: 20px 30px; border-radius: 10px; margin-bottom: 20px;">
-        <h1 style="color: white; margin: 0; font-size: 24px;">⚠️ Toggl Time Entry Compliance System</h1>
+        <h1 style="color: white; margin: 0; font-size: 24px;">💠 Toggl Time Entry Compliance System</h1>
         <p style="color: rgba(255,255,255,0.9); margin: 4px 0 0 0;">
             Per-user incident detection and notification</p>
     </div>
